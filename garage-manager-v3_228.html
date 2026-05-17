@@ -1602,21 +1602,6 @@ tbody tr:hover td { background: #fafbfc; }
 </div>
 </div>
 
-<!-- PS DETAIL MODAL -->
-<div class="overlay" id="m-ps-detail">
-<div class="modal wide" style="width:680px;max-height:90vh;display:flex;flex-direction:column">
-  <div class="mhead"><span class="mtitle" id="ps-det-title">🧾 รายละเอียด</span><button class="mclose" onclick="closeM('m-ps-detail')">✕</button></div>
-  <div class="mbody" id="ps-det-body" style="flex:1;overflow-y:auto"></div>
-  <div class="mfoot">
-    <button class="btn btn-outline" onclick="closeM('m-ps-detail')">ปิด</button>
-    <button class="btn btn-outline" id="ps-det-return-btn" onclick="openPSReturn()" style="color:var(--red);border-color:var(--red)">↩️ คืนสินค้า</button>
-    <button class="btn btn-outline" id="ps-det-delivery-btn" onclick="psDetPrint('delivery')">📋 ใบส่งของ</button>
-    <button class="btn btn-outline" id="ps-det-receipt-btn" onclick="psDetPrint('receipt')">🖨️ ใบเสร็จ</button>
-    <button class="btn btn-primary" id="ps-det-pay-btn" onclick="psDetPay()">💰 รับชำระ</button>
-  </div>
-</div>
-</div>
-
 <!-- PARTS RETURN MODAL -->
 <div class="overlay" id="m-ps-return">
 <div class="modal wide" style="width:660px;max-height:90vh;display:flex;flex-direction:column">
