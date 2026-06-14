@@ -1818,28 +1818,28 @@ tbody tr:hover td { background: #fafbfc; }
         <tr><td colspan="5" style="padding:20px;text-align:center;color:var(--text3);font-size:13px">ค้นหาและเพิ่มอะไหล่ด้านบน</td></tr>
       </tbody>
     </table>
-    <div style="display:flex;justify-content:flex-end;padding:12px 18px;border-top:2px solid var(--border)">
-      <table style="border-collapse:collapse;width:200px">
-        <tr style="border-top:2px solid var(--border)">
-          <td style="padding:8px 0;font-weight:800;font-size:14px">รวมทั้งสิ้น</td>
-          <td style="text-align:right;font-family:var(--mono);font-weight:800;font-size:17px;color:var(--accent)" id="wd-total-summary">฿0</td>
-        </tr>
-      </table>
-    </div>
   </div>
-    <!-- ── กรอกเอง ── -->
-    <div style="padding:12px 18px;border-top:2px dashed var(--border);background:var(--bg)">
-      <div style="font-size:12px;font-weight:700;color:var(--text3);margin-bottom:8px;display:flex;align-items:center;gap:6px">
-        ✏️ เพิ่มอะไหล่ที่ไม่มีในสต็อก (กรอกเอง)
-        <span style="font-size:11px;font-weight:400;color:var(--text3)">— ไม่ตัดสต็อก</span>
-      </div>
-      <div style="display:grid;grid-template-columns:2fr 60px 80px 90px auto;gap:6px;align-items:center">
-        <input class="ctrl" id="wd-free-name" placeholder="ชื่ออะไหล่ *" style="font-size:13px;padding:5px 8px" />
-        <input class="ctrl" id="wd-free-qty" type="number" min="1" value="1" placeholder="จำนวน" style="font-size:13px;padding:5px 6px;text-align:center;font-family:var(--mono)" />
-        <input class="ctrl" id="wd-free-unit" placeholder="หน่วย" style="font-size:13px;padding:5px 8px" />
-        <input class="ctrl" id="wd-free-price" type="number" min="0" step="100" placeholder="ราคา ฿" style="font-size:13px;padding:5px 8px;text-align:right;font-family:var(--mono)" />
-        <button class="btn btn-outline btn-sm" onclick="addFreeformWDItem()" style="white-space:nowrap;padding:5px 10px">➕ เพิ่ม</button>
-      </div>
+  <!-- รวมทั้งสิ้น — อยู่นอก scroll area เห็นตลอด -->
+  <div style="display:flex;justify-content:flex-end;padding:10px 18px;border-top:2px solid var(--border);background:var(--surface)">
+    <table style="border-collapse:collapse;width:200px">
+      <tr>
+        <td style="padding:6px 0;font-weight:800;font-size:14px">รวมทั้งสิ้น</td>
+        <td style="text-align:right;font-family:var(--mono);font-weight:800;font-size:17px;color:var(--accent)" id="wd-total-summary">฿0</td>
+      </tr>
+    </table>
+  </div>
+  <!-- ── กรอกเอง ── -->
+  <div style="padding:10px 18px;border-top:2px dashed var(--border);background:var(--bg)">
+    <div style="font-size:12px;font-weight:700;color:var(--text3);margin-bottom:6px;display:flex;align-items:center;gap:6px">
+      ✏️ เพิ่มอะไหล่ที่ไม่มีในสต็อก (กรอกเอง)
+      <span style="font-size:11px;font-weight:400;color:var(--text3)">— ไม่ตัดสต็อก</span>
+    </div>
+    <div style="display:grid;grid-template-columns:2fr 60px 80px 90px auto;gap:6px;align-items:center">
+      <input class="ctrl" id="wd-free-name" placeholder="ชื่ออะไหล่ *" style="font-size:13px;padding:5px 8px" />
+      <input class="ctrl" id="wd-free-qty" type="number" min="1" value="1" placeholder="จำนวน" style="font-size:13px;padding:5px 6px;text-align:center;font-family:var(--mono)" />
+      <input class="ctrl" id="wd-free-unit" placeholder="หน่วย" style="font-size:13px;padding:5px 8px" />
+      <input class="ctrl" id="wd-free-price" type="number" min="0" step="100" placeholder="ราคา ฿" style="font-size:13px;padding:5px 8px;text-align:right;font-family:var(--mono)" />
+      <button class="btn btn-outline btn-sm" onclick="addFreeformWDItem()" style="white-space:nowrap;padding:5px 10px">+ เพิ่ม</button>
     </div>
   </div>
   <div class="mfoot">
@@ -2477,7 +2477,7 @@ tbody tr:hover td { background: #fafbfc; }
 <div class="overlay" id="m-confirm" style="z-index:500">
 <div class="modal" style="width:360px">
   <div class="mhead"><span class="mtitle" id="confirm-title">ยืนยัน</span><button class="mclose" onclick="closeM('m-confirm')">✕</button></div>
-  <div class="mbody"><p id="confirm-msg" style="font-size:14px;line-height:1.6;color:var(--text2)"></p></div>
+  <div class="mbody"><div id="confirm-msg" style="font-size:14px;line-height:1.6;color:var(--text2)"></div></div>
   <div class="mfoot"><button class="btn btn-outline" id="confirm-cancel" onclick="closeM('m-confirm')">ยกเลิก</button><button class="btn btn-danger" id="confirm-ok">ยืนยัน</button></div>
 </div>
 </div>
@@ -4418,8 +4418,8 @@ function showWOPopup(woId) {
   var showAmt = ['owner','manager'].includes(currentUser ? currentUser.role : '');
   var sc = WO_SC[w.status] || 'badge-wait';
   var pt = 0, lt = 0;
-  (w.parts||[]).forEach(function(p){ pt += p.trial ? 0 : p.qty*p.price; });
-  (w.labor||[]).forEach(function(l){ lt += l.amt; });
+  (w.parts||[]).forEach(function(p){ pt += p.trial ? 0 : (parseFloat(p.qty)||0)*(parseFloat(p.price)||0); });
+  (w.labor||[]).forEach(function(l){ lt += (parseFloat(l.amt)||0); });
   var grand = pt + lt;
 
   document.getElementById('wo-popup-title').textContent = w.id + ' — ' + w.plate;
@@ -4482,8 +4482,8 @@ function openWODetail(woId) {
   var showAmt = ['owner','manager'].includes(currentUser ? currentUser.role : '');
   var sc = WO_SC[w.status] || 'badge-wait';
   var pt = 0, lt = 0;
-  (w.parts||[]).forEach(function(p){ pt += p.trial ? 0 : p.qty*p.price; });
-  (w.labor||[]).forEach(function(l){ lt += l.amt; });
+  (w.parts||[]).forEach(function(p){ pt += p.trial ? 0 : (parseFloat(p.qty)||0)*(parseFloat(p.price)||0); });
+  (w.labor||[]).forEach(function(l){ lt += (parseFloat(l.amt)||0); });
   var grand = pt + lt;
 
   document.getElementById('wo-det-title').textContent = w.id + ' — ' + w.plate;
@@ -5429,7 +5429,7 @@ function togglePreferred(stockId, srcIdx) {
   var s = STOCK_DATA.find(function(x){ return x.id===stockId; }); if (!s||!s.sources) return;
   s.sources.forEach(function(sc,i){ sc.preferred = (i===srcIdx); });
   saveToLocalStorage();
-  initStock();
+  initStock(); runStockSearch();
   openStockDetail(stockId);
   showToast('★ ตั้ง '+s.sources[srcIdx].brand+' เป็น Supplier หลักแล้ว');
 }
@@ -5448,7 +5448,7 @@ function deleteSource(stockId, srcIdx) {
       s.sources.splice(srcIdx, 1);
       if (wasPreferred && s.sources.length > 0) s.sources[0].preferred = true;
       saveToLocalStorage();
-      initStock();
+      initStock(); runStockSearch();
       openStockDetail(stockId);
       showToast('🗑 ลบ '+sc.brand+' ออกจาก '+s.name+' แล้ว');
     }
@@ -5482,10 +5482,14 @@ function openAddSourceModal(stockId) {
   okBtn.textContent = '＋ เพิ่ม Supplier';
   okBtn.className   = 'btn btn-primary';
   okBtn.onclick = function() {
+    /* Re-find the live stock object by id at click-time — never trust the captured `s` */
+    var sLive = STOCK_DATA.find(function(x){ return x.id===stockId; });
+    if (!sLive) { showToast('❌ ไม่พบอะไหล่'); closeM('m-confirm'); return; }
     var brand = (document.getElementById('ns-brand').value||'').trim();
     var cost  = parseFloat(document.getElementById('ns-cost').value)||0;
     if (!brand||cost<=0) { showToast('❌ กรุณากรอกยี่ห้อและราคา'); return; }
-    if (!s.sources) s.sources = [];
+    if (!Array.isArray(sLive.sources)) sLive.sources = [];
+    var s = sLive;
     var isFirst = s.sources.length === 0;
     s.sources.push({
       supplierId:  document.getElementById('ns-sup').value||'',
@@ -5499,7 +5503,7 @@ function openAddSourceModal(stockId) {
       preferred:   isFirst
     });
     saveToLocalStorage();
-    initStock();
+    initStock(); runStockSearch();
     closeM('m-confirm');
     openStockDetail(stockId);
     showToast('✅ เพิ่ม '+brand+' เป็น Supplier ของ '+s.name+' แล้ว');
@@ -5692,7 +5696,7 @@ function toggleSourceActive(stockId, srcIdx) {
   if (isNowInactive) {
     /* Re-activate */
     sc.active = true;
-    saveToLocalStorage(); initStock();
+    saveToLocalStorage(); initStock(); runStockSearch();
     openStockDetail(stockId);
     showToast('✅ เปิดใช้งาน Supplier '+sc.brand+' แล้ว');
   } else {
@@ -5704,7 +5708,7 @@ function toggleSourceActive(stockId, srcIdx) {
       +'⛔ จะไม่นับรวมสต็อก และไม่แสดงให้เลือกในใบงาน/บิล</div>',
       function(){
         sc.active = false;
-        saveToLocalStorage(); initStock();
+        saveToLocalStorage(); initStock(); runStockSearch();
         openStockDetail(stockId);
         showToast('⛔ ปิด Supplier '+sc.brand+' แล้ว');
       }
@@ -6857,7 +6861,8 @@ function renderWOList(list) {
 
   tbody.innerHTML = '';
   list.forEach(function(w) {
-    var sc = WO_SC_MAP[w.status] || 'badge-wait';
+    var isCancelledTab = _woTab === 'cancelled';
+    var sc = isCancelledTab ? 'badge-wait' : (WO_SC_MAP[w.status] || 'badge-wait');
     var tr = document.createElement('tr');
     tr.style.cursor = 'pointer';
 
@@ -6899,7 +6904,9 @@ function renderWOList(list) {
 
     // Status
     var tdSt = document.createElement('td');
-    tdSt.innerHTML='<span class="badge '+sc+'">'+w.status+'</span>';
+    var dispStatus = isCancelledTab ? 'ยกเลิก' : w.status;
+    var dispStyle  = isCancelledTab ? 'background:var(--red-light);color:var(--red)' : '';
+    tdSt.innerHTML='<span class="badge '+sc+'" style="'+dispStyle+'">'+dispStatus+'</span>';
     tr.appendChild(tdSt);
 
     if (_woTab === 'cancelled') {
@@ -7875,8 +7882,8 @@ function buildBillHTML(woId, useVAT, docType, opts) {
   var isQuote = docType === 'quote';
   var w = WORK_ORDERS.find(function(x){ return x.id===woId; }); if (!w) return '';
   var pt=0, lt=0;
-  (w.parts||[]).forEach(function(p){ pt += p.trial ? 0 : p.qty*p.price; });
-  (w.labor||[]).forEach(function(l){ lt += l.amt; });
+  (w.parts||[]).forEach(function(p){ pt += p.trial ? 0 : (parseFloat(p.qty)||0)*(parseFloat(p.price)||0); });
+  (w.labor||[]).forEach(function(l){ lt += (parseFloat(l.amt)||0); });
   var sub    = setType==='parts' ? pt : setType==='labor' ? lt : pt+lt;
   var vatAmt = useVAT ? sub*0.07 : 0;
   var grand  = sub + vatAmt;
@@ -7887,11 +7894,11 @@ function buildBillHTML(woId, useVAT, docType, opts) {
 
   var pCount = (w.parts||[]).length;
   var pRows = (setType===''||setType==='parts') ? (w.parts||[]).map(function(p,i){
-    var effP   = p.trial ? 0 : p.price;
-    var effSub = p.qty * effP;
+    var effP   = p.trial ? 0 : (parseFloat(p.price)||0);
+    var effSub = (parseFloat(p.qty)||0) * effP;
     return '<tr>'
       +'<td style="text-align:center;color:#999;font-size:12px;border:1px solid #e5e7eb">'+(i+1)+'</td>'
-      +'<td style="border:1px solid #e5e7eb">'+p.name+(p.trial?' <span style="background:#fff7ed;color:#ea580c;font-size:10px;padding:1px 5px;border-radius:3px;font-weight:700">🧪ทดลอง</span>':'')+(p.note?'<div style="font-size:11px;color:#6b7280;margin-top:2px">📝 '+p.note+'</div>':'')+'</td>'
+      +'<td style="border:1px solid #e5e7eb">'+p.name+(p.trial?' <span style="background:#fff7ed;color:#ea580c;font-size:10px;padding:1px 5px;border-radius:3px;font-weight:700">🧪ทดลอง</span>':'')+(p.note?' <span style="font-size:11px;color:#6b7280">'+p.note+'</span>':'')+'</td>'
       +'<td style="text-align:center;font-family:monospace;border:1px solid #e5e7eb">'+p.qty+' '+(p.unit||'')+'</td>'
       +'<td style="text-align:right;font-family:monospace;border:1px solid #e5e7eb">'+(p.trial?'<span style="color:#ea580c">฿0</span>':'฿'+fmtM(effP))+'</td>'
       +'<td style="text-align:right;font-family:monospace;color:'+(p.trial?'#ea580c':'#16a34a')+';font-weight:600;border:1px solid #e5e7eb">฿'+fmtM(effSub)+'</td></tr>';
@@ -7927,9 +7934,13 @@ function buildBillHTML(woId, useVAT, docType, opts) {
   var shopTaxId = SHOP_SETTINGS.taxid      || '';
   var shopBranch= SHOP_SETTINGS.shopBranch || 'สำนักงานใหญ่';
 
-  return '<div style="font-size:13.5px;font-family:Sarabun,sans-serif">'
-    /* Header — logo left, doc info right */
-    +'<div style="display:flex;align-items:flex-start;justify-content:space-between;border-bottom:2px solid #e5e7eb;padding-bottom:12px;margin-bottom:14px">'
+  /* ── single outer table: <thead> repeats on every print page ── */
+  return '<table style="width:100%;border-collapse:collapse;font-size:13.5px;font-family:Sarabun,sans-serif">'
+    +'<colgroup><col style="width:36px"><col><col style="width:80px"><col style="width:90px"><col style="width:90px"></colgroup>'
+    /* ── THEAD: shop header + customer + column labels ── */
+    +'<thead>'
+    +'<tr><td colspan="5" style="padding-bottom:12px;border-bottom:2px solid #e5e7eb">'
+    +'<div style="display:flex;align-items:flex-start;justify-content:space-between">'
     +'<div style="display:flex;align-items:center;gap:12px">'
     +(logoUrl?'<img src="'+logoUrl+'" style="width:56px;height:56px;border-radius:50%;object-fit:cover;flex-shrink:0" />':'')
     +'<div>'
@@ -7948,16 +7959,21 @@ function buildBillHTML(woId, useVAT, docType, opts) {
     +(copyLabel?'<div style="margin-top:4px;font-size:13px;font-weight:800;padding:3px 12px;border-radius:4px;display:inline-block;'+(copyLabel==='ต้นฉบับ'?'background:#dcfce7;color:#15803d;border:1.5px solid #86efac':'background:#fef3c7;color:#92400e;border:1.5px solid #fcd34d')+'">'+copyLabel+'</div>':'')
     +'</div>'
     +'</div>'
+    +'</td></tr>'
     /* Customer / vehicle info block */
+    +'<tr><td colspan="5" style="padding:12px 0 0 0">'
     + (function(){
+      /* Look up by name first (reliable), phone only as fallback for address/taxid */
       var custRec = typeof CUSTOMERS!=='undefined'
-        ? CUSTOMERS.find(function(c){ return (c.phone&&c.phone===w.phone) || (c.custClass==='juristic'?c.name:(c.prefix||'')+c.name)===(w.custName||''); })
+        ? (CUSTOMERS.find(function(c){ return (c.custClass==='juristic'?c.name:(c.prefix||'')+c.name)===(w.custName||''); })
+           || (w.phone ? CUSTOMERS.find(function(c){ return c.phone && c.phone===w.phone; }) : null))
         : null;
       var custTaxId  = (custRec&&custRec.taxid)  || w.taxId  || '';
       var custAddr   = (custRec&&custRec.address) || w.address || '';
-      var custFullName = custRec
+      /* Always use the name stored on the WO — custRec is only for supplementary address/taxid */
+      var custFullName = w.custName || (custRec
         ? (typeof custDisplayName==='function' ? custDisplayName(custRec) : (custRec.custClass==='juristic' ? (custRec.prefix==='บริษัท'?'บริษัท '+custRec.name+' จำกัด':custRec.prefix==='ห้างหุ้นส่วน'?'ห้างหุ้นส่วนจำกัด '+custRec.name:(custRec.prefix||'บริษัท')+' '+custRec.name) : (custRec.prefix?custRec.prefix+' ':'')+custRec.name))
-        : (w.custName||'—');
+        : '—');
 
       if (useVAT) {
         /* ── ใบกำกับภาษี: แสดงข้อมูลผู้ซื้อตามกฎหมาย ── */
@@ -7990,18 +8006,22 @@ function buildBillHTML(woId, useVAT, docType, opts) {
         +'</div>';
       }
     })()
-    /* Items table */
-    +'<table style="width:100%;border-collapse:collapse;margin-bottom:12px">'
-    +'<thead><tr style="background:'+docColor+';color:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact">'
-    +'<th style="padding:7px 10px;text-align:center;width:36px;font-size:12px">#</th>'
+    +'</td></tr>'
+    /* Column header row */
+    +'<tr style="background:'+docColor+';color:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact">'
+    +'<th style="padding:7px 10px;text-align:center;font-size:12px">#</th>'
     +'<th style="padding:7px 10px;text-align:left;font-size:12px">รายการ</th>'
-    +'<th style="padding:7px 10px;text-align:center;width:80px;font-size:12px">จำนวน</th>'
-    +'<th style="padding:7px 10px;text-align:right;width:90px;font-size:12px">ราคา/หน่วย</th>'
-    +'<th style="padding:7px 10px;text-align:right;width:90px;font-size:12px">รวม</th>'
-    +'</tr></thead><tbody>'
+    +'<th style="padding:7px 10px;text-align:center;font-size:12px">จำนวน</th>'
+    +'<th style="padding:7px 10px;text-align:right;font-size:12px">ราคา/หน่วย</th>'
+    +'<th style="padding:7px 10px;text-align:right;font-size:12px">รวม</th>'
+    +'</tr>'
+    +'</thead>'
+    /* ── TBODY: items ── */
+    +'<tbody>'
     +(pRows.length?'<tr><td colspan="5" style="padding:5px 10px;font-size:11px;font-weight:700;color:#7c3aed;background:#faf5ff;border:1px solid #e5e7eb">ค่าอะไหล่</td></tr>'+pRows:'')
-    +(lRows.length?'<tr><td colspan="5" style="padding:5px 10px;font-size:11px;font-weight:700;color:#0369a1;background:#f0f9ff;border:1px solid #e5e7eb">ค่าแรง</td></tr>'+lRows:'')
-    +'</tbody></table>'
+    +(lRows.length?'<tr style="break-before:avoid;page-break-before:avoid"><td colspan="5" style="padding:5px 10px;font-size:11px;font-weight:700;color:#0369a1;background:#f0f9ff;border:1px solid #e5e7eb">ค่าแรง</td></tr>'+lRows:'')
+    /* Summary + footer: keep together on same page */
+    +'<tr style="break-inside:avoid;page-break-inside:avoid"><td colspan="5" style="padding-top:12px">'
     /* Summary (right-aligned) */
     +'<div style="display:flex;justify-content:flex-end">'
     +'<div style="width:240px;font-size:13px">'
@@ -8012,17 +8032,19 @@ function buildBillHTML(woId, useVAT, docType, opts) {
     +'<div style="display:flex;justify-content:space-between;padding:8px 0;border-top:2px solid #111;margin-top:4px"><span style="font-weight:800;font-size:14px">รวมทั้งสิ้น</span><span style="font-family:monospace;font-weight:800;font-size:16px;color:#1d4ed8">฿'+fmtM(grand)+'</span></div>'
     +'</div>'
     +'</div>'
-    /* Thai baht words — 2 lines below summary */
+    /* Thai baht words */
     +'<div style="margin-top:32px;font-size:12.5px;color:#374151"><span style="color:#6b7280">เป็นเงิน</span> <b>'+bahtText(grand)+'</b></div>'
     /* Warranty text */
-    +(SHOP_SETTINGS.warrantyText&&!isQuote?'<div style="margin-top:10px;font-size:12px;color:#555;padding:7px 12px;background:#f0fdf4;border-left:3px solid #15803d;border-radius:4px">🛡️ '+SHOP_SETTINGS.warrantyText+'</div>':'')
-    /* Signature — left, 3 lines below baht words */
+    +(SHOP_SETTINGS.warrantyText&&!isQuote?'<div style="margin-top:10px;font-size:12px;color:#555;padding:7px 12px;background:#f0fdf4;border-left:3px solid #15803d;border-radius:4px">'+SHOP_SETTINGS.warrantyText+'</div>':'')
+    /* Signature */
     +'<div style="margin-top:48px;text-align:center;width:200px">'
     +'<div style="border-top:1px solid #374151;padding-top:6px;font-size:12.5px;color:#374151">ผู้รับเงิน</div>'
     +'</div>'
     /* Footer */
     +(SHOP_SETTINGS.footerText?'<div style="text-align:center;margin-top:16px;font-size:12px;color:#9ca3af;border-top:1px solid #e5e7eb;padding-top:10px">'+SHOP_SETTINGS.footerText+'</div>':'')
-    +'</div>';
+    +'</td></tr>'
+    +'</tbody>'
+    +'</table>';
 }
 
 function showQuote(woId) {
@@ -8065,8 +8087,8 @@ function printQuote() {
   if (wo) {
     var existing = INVOICES.find(function(inv){ return inv.woId===woId; });
     if (!existing) {
-      var sub = (wo.parts||[]).reduce(function(s,p){ return s+(p.qty||1)*(p.price||0); },0)
-              + (wo.labor||[]).reduce(function(s,l){ return s+(l.price||0); },0);
+      var sub = (wo.parts||[]).reduce(function(s,p){ return s + (p.trial ? 0 : (parseFloat(p.qty)||0)*(parseFloat(p.price)||0)); },0)
+              + (wo.labor||[]).reduce(function(s,l){ return s+(parseFloat(l.amt)||0); },0);
       var vatAmt = _quoteVAT ? Math.round(sub*0.07) : 0;
       var grand  = sub + vatAmt;
       var today  = new Date().toLocaleDateString('th-TH',{day:'2-digit',month:'2-digit',year:'2-digit'});
@@ -8190,8 +8212,8 @@ function printReceipt() {
   if (wo) {
     var existing = RECEIPTS.find(function(r){ return r.woId===woId && r.type!=='ขายอะไหล่' && r.type!=='คืนสินค้า'; });
     if (!existing) {
-      var sub = (wo.parts||[]).reduce(function(s,p){ return s+(p.qty||1)*(p.price||0); },0)
-              + (wo.labor||[]).reduce(function(s,l){ return s+(l.amt||0); },0);
+      var sub = (wo.parts||[]).reduce(function(s,p){ return s + (p.trial ? 0 : (parseFloat(p.qty)||0)*(parseFloat(p.price)||0)); },0)
+              + (wo.labor||[]).reduce(function(s,l){ return s+(parseFloat(l.amt)||0); },0);
       var vatAmt = _receiptVAT ? Math.round(sub*0.07) : 0;
       var grand  = sub + vatAmt;
       var today  = new Date().toLocaleDateString('th-TH',{day:'2-digit',month:'2-digit',year:'2-digit'});
@@ -8645,7 +8667,7 @@ var SHOP_SETTINGS = {
   taxid:      '0-1234-56789-01-2',
   web:        '@uanmotor',
   loginSub:   'Services for Volkswagen Audi Seat Skoda',
-  footerText: 'ขอบคุณที่ใช้บริการ UAN MOTOR VOLK 🙏',
+  footerText: 'ขอบคุณที่ใช้บริการ UAN MOTOR VOLK',
   carCond:    'กรุณาเก็บใบรับรถไว้เป็นหลักฐาน | ทางอู่ไม่รับผิดชอบกรณีของมีค่าที่ทิ้งไว้ในรถ | ไม่มารับรถภายใน 30 วัน ทางอู่ขอสงวนสิทธิ์เรียกค่าจอด',
   vatDefault: false,
   woPrefix:   'WO-',  woNext:143, woPad:4,
@@ -13520,7 +13542,7 @@ function openEditSource(stockId, si) {
       });
     }
     saveToLocalStorage();
-    initStock();
+    initStock(); runStockSearch();
     closeM('m-confirm');
     openStockDetail(stockId);
     showToast('✅ แก้ไข '+sc.brand+' แล้ว'+(newQty!==oldQty?' | ปรับสต็อก '+( newQty>oldQty?'+':'')+(newQty-oldQty):''));
