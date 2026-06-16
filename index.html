@@ -13763,11 +13763,35 @@ function loadFromLocalStorage() {
   var rc=tryLoad('gm_receipts');   if(rc) RECEIPTS=rc;
   var st=tryLoad('gm_stock');      if(st) STOCK_DATA=st;
   var sp=tryLoad('gm_suppliers');  if(sp) SUPPLIERS=sp;
-  var mc=tryLoad('gm_mechanics');  if(mc) MECHANICS=mc;
+  var mc=tryLoad('gm_mechanics');
+  if(mc) {
+    MECHANICS = mc;
+    /* Sync nextMechId + de-dupe colliding IDs — ป้องกัน ID ช่างซ้ำ → WO แสดงชื่อช่างผิดคน */
+    var _maxMId = 0;
+    MECHANICS.forEach(function(m){ var n=parseInt((m.id||'').replace(/\D/g,''))||0; if(n>_maxMId) _maxMId=n; });
+    if(_maxMId >= nextMechId) nextMechId = _maxMId + 1;
+    var _seenM = {}, _mechFixed = false;
+    MECHANICS.forEach(function(m){
+      if(!m.id || _seenM[m.id]) {                       /* missing or duplicate id */
+        m.id = 'M'+String(nextMechId++).padStart(2,'0'); /* always above all existing ids */
+        _mechFixed = true;
+      }
+      _seenM[m.id] = true;
+    });
+    if(_mechFixed) { try{ localStorage.setItem('gm_mechanics', JSON.stringify(MECHANICS)); }catch(e){} }
+  }
   var ex=tryLoad('gm_expenses');   if(ex) EXPENSES=ex;
   var iv=tryLoad('gm_invoices');   if(iv) INVOICES=iv;
   var po=tryLoad('gm_po');         if(po) PURCHASE_ORDERS=po;
   var ss=tryLoad('gm_settings');   if(ss) { try{ Object.assign(SHOP_SETTINGS,ss); }catch(e){} }
+  /* Sync WO counter to highest existing WO id — ป้องกันเลข WO ซ้ำ → หาประวัติไม่เจอ */
+  (function(){
+    var _maxWO = 0;
+    WORK_ORDERS.forEach(function(w){ var n=parseInt((w.id||'').replace(/\D/g,''))||0; if(n>_maxWO) _maxWO=n; });
+    if(typeof CANCELLED_WOS!=='undefined') CANCELLED_WOS.forEach(function(w){ var n=parseInt((w.id||'').replace(/\D/g,''))||0; if(n>_maxWO) _maxWO=n; });
+    if(_maxWO >= (SHOP_SETTINGS.woNext||0)) SHOP_SETTINGS.woNext = _maxWO + 1;
+    if(_maxWO >= nextWOId) nextWOId = _maxWO + 1;
+  })();
   var cu=tryLoad('gm_customers');
   if(cu) {
     CUSTOMERS = cu;
