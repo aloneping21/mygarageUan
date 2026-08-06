@@ -4602,9 +4602,14 @@ function lookupPlate(plate) {
     });
   }
 
-  /* Always show dropdown if matches > 0 and not exact single match */
-  var exactMatch = matches.length===1 &&
-    matches[0].car.plate.replace(/\s/g,'').toLowerCase() === plate.replace(/\s/g,'').toLowerCase();
+  /* ถ้ามีทะเบียนตรงเป๊ะในผลลัพธ์ ให้ใช้อันนั้นเลย (ไม่ต้องรอ match เดียว)
+     — กันปัญหา "คลิกแล้วไม่ไป" เมื่อมีทะเบียนซ้อน/ซ้ำกัน */
+  var _np = plate.replace(/\s/g,'').toLowerCase();
+  var exactIdx = -1;
+  for (var _i=0; _i<matches.length; _i++) {
+    if (matches[_i].car.plate.replace(/\s/g,'').toLowerCase() === _np) { exactIdx = _i; break; }
+  }
+  var exactMatch = exactIdx >= 0;
 
   if (!dropdown) {
     /* Create dropdown if not exists */
@@ -4645,8 +4650,8 @@ function lookupPlate(plate) {
 
   if (dropdown) dropdown.style.display = 'none';
 
-  var found = exactMatch ? matches[0].car : null;
-  var foundCust = exactMatch ? matches[0].cust : null;
+  var found = exactMatch ? matches[exactIdx].car : null;
+  var foundCust = exactMatch ? matches[exactIdx].cust : null;
 
   if (found && foundCust) {
     var isJurFound = foundCust.custClass === 'juristic';
@@ -7934,6 +7939,16 @@ function buildBillHTML(woId, useVAT, docType, opts) {
   var shopTaxId = SHOP_SETTINGS.taxid      || '';
   var shopBranch= SHOP_SETTINGS.shopBranch || 'สำนักงานใหญ่';
 
+  /* ── ใบกำกับภาษี VAT 7%: ใช้ฟอร์มกระดาษคาร์บอน (ไม่รวมใบเสนอราคา) ── */
+  if (useVAT && !isQuote) {
+    return buildVatInvoiceHTML(w, {
+      setType: setType, copyLabel: copyLabel, docNo: docNo,
+      sub: sub, vatAmt: vatAmt, grand: grand, fmtM: fmtM,
+      shopName: shopName, shopAddr: shopAddr, shopTel: shopTel, shopTel2: shopTel2,
+      shopTaxId: shopTaxId, logoUrl: logoUrl
+    });
+  }
+
   /* ── single outer table: <thead> repeats on every print page ── */
   return '<table style="width:100%;border-collapse:collapse;font-size:13.5px;font-family:Sarabun,sans-serif">'
     +'<colgroup><col style="width:36px"><col><col style="width:80px"><col style="width:90px"><col style="width:90px"></colgroup>'
@@ -8047,6 +8062,238 @@ function buildBillHTML(woId, useVAT, docType, opts) {
     +'</table>';
 }
 
+/* ── ใบกำกับภาษี/ใบเสร็จรับเงิน VAT 7% — ฟอร์มกระดาษคาร์บอน ── */
+function buildVatInvoiceHTML(w, o) {
+  var fmtM = o.fmtM;
+
+  /* ดึงข้อมูลลูกค้า: หาโดยชื่อก่อน, เบอร์เป็น fallback (เหมือน buildBillHTML) */
+  var custRec = (typeof CUSTOMERS!=='undefined')
+    ? (CUSTOMERS.find(function(c){ return (c.custClass==='juristic'?c.name:(c.prefix||'')+c.name)===(w.custName||''); })
+       || (w.phone ? CUSTOMERS.find(function(c){ return c.phone && c.phone===w.phone; }) : null))
+    : null;
+  var custTaxId  = (custRec&&custRec.taxid)   || w.taxId   || '';
+  var custAddr   = (custRec&&custRec.address)  || w.address || '';
+  var custName   = w.custName || (custRec
+    ? (typeof custDisplayName==='function' ? custDisplayName(custRec) : custRec.name)
+    : '');
+
+  /* วันที่แบบสั้น dd/mm/yy (พ.ศ. 2 หลัก) */
+  var _d = new Date();
+  var shortDate = _d.getDate()+'/'+(_d.getMonth()+1)+'/'+String((_d.getFullYear()+543)%100).padStart(2,'0');
+
+  /* กล่องมุมขวาบน: ต้นฉบับ / สำเนา / สำหรับบัญชี */
+  var copyEnMap = { 'ต้นฉบับ':'ORIGINAL', 'สำเนา':'COPY', 'สำหรับบัญชี':'FOR ACCOUNTING' };
+  var origTh = o.copyLabel || 'ต้นฉบับ';
+  var origEn = copyEnMap[origTh] || 'ORIGINAL';
+
+  /* ป้ายชุด ก/ข เมื่อแยกพิมพ์ */
+  var setLabel = o.setType==='parts' ? 'ชุด ก — ค่าอะไหล่'
+               : o.setType==='labor' ? 'ชุด ข — ค่าแรง' : '';
+
+  /* รวมรายการเป็น array เดียว (อะไหล่ + แรง ตาม setType) */
+  var items = [];
+  if (o.setType===''||o.setType==='parts') {
+    (w.parts||[]).forEach(function(p){
+      var price = p.trial ? 0 : (parseFloat(p.price)||0);
+      var amt   = (parseFloat(p.qty)||0) * price;
+      items.push({ code:(p.code||''), desc:(p.name||'')+(p.trial?' <span style="font-size:9px">(ทดลอง)</span>':''),
+                   qty:(p.qty||''), unit:(p.unit||''), price:fmtM(price), amt:fmtM(amt) });
+    });
+  }
+  if (o.setType===''||o.setType==='labor') {
+    (w.labor||[]).forEach(function(l){
+      items.push({ code:'', desc:(l.desc||''), qty:'', unit:'', price:'', amt:fmtM(parseFloat(l.amt)||0) });
+    });
+  }
+
+  /* แบ่งหน้า: หน้าที่ไม่ใช่หน้าสุดท้ายอัดได้ 22 แถว (ไม่มีสรุป/เซ็น),
+     หน้าสุดท้ายมีสรุป+เซ็น จึงเหลือ 16 แถว — เลขลำดับต่อเนื่องข้ามหน้า */
+  var ROWS_MID = 22, ROWS_LAST = 16;
+  var chunks = [];
+  (function(){
+    var n = items.length, i = 0;
+    if (n <= ROWS_LAST) { chunks.push({ items: items.slice(), start: 0, isLast: true }); return; }
+    /* อัดหน้าแรกๆ ให้เต็ม (ROWS_MID) จนเหลือช่วง 2 หน้าท้าย */
+    while (n - i > ROWS_MID + ROWS_LAST) {
+      chunks.push({ items: items.slice(i, i+ROWS_MID), start: i, isLast: false }); i += ROWS_MID;
+    }
+    var remaining = n - i;
+    if (remaining <= ROWS_LAST) {
+      chunks.push({ items: items.slice(i), start: i, isLast: true });
+    } else {
+      /* 2 หน้าท้าย: ถ่วงสมดุลให้ใกล้เคียงกัน (คุมไม่ให้เกินคาปาซิตี้) */
+      var first = Math.ceil(remaining / 2);
+      if (remaining - first > ROWS_LAST) first = remaining - ROWS_LAST;
+      if (first > ROWS_MID) first = ROWS_MID;
+      chunks.push({ items: items.slice(i, i+first), start: i, isLast: false }); i += first;
+      chunks.push({ items: items.slice(i), start: i, isLast: true });
+    }
+  })();
+  var pageCount = chunks.length;
+  function renderRows(start, pageItems, slots) {
+    var h = '';
+    pageItems.forEach(function(it, i){
+      h += '<tr class="vf-item-row"><td class="vf-num">'+(start+i+1)+'</td><td>'+it.code+'</td>'
+        +'<td class="vf-desc">'+it.desc+'</td><td class="vf-num">'+it.qty+'</td><td class="vf-num">'+it.unit+'</td>'
+        +'<td class="vf-money">'+it.price+'</td><td class="vf-money">'+it.amt+'</td></tr>';
+    });
+    for (var f=pageItems.length; f<slots; f++)
+      h += '<tr class="vf-item-row"><td class="vf-num"></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>';
+    return h;
+  }
+
+  /* โลโก้: ใช้รูปจริงจาก Settings ถ้ามี ไม่งั้น fallback วงกลมชื่อร้าน */
+  var firstWord = (o.shopName||'').split(' ')[0] || 'LOGO';
+  var logoHtml = o.logoUrl
+    ? '<img class="vf-logo-img" src="'+o.logoUrl+'" />'
+    : '<div class="vf-logo"><b>'+firstWord+'</b></div>';
+
+  var STYLE = '<style>'
+    +'.vf-root *{box-sizing:border-box;margin:0;padding:0;font-family:Sarabun,sans-serif}'
+    +'.vf-root .vf-page{background:#fff;color:#000;border:1.5px solid #000;padding:18px 20px 14px;width:100%}'
+    +'.vf-root .vf-dot{border-bottom:1px dotted #555;flex:1}'
+    +'.vf-root .vf-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}'
+    +'.vf-root .vf-brand{display:flex;gap:11px;align-items:flex-start}'
+    +'.vf-root .vf-logo,.vf-root .vf-logo-img{width:60px;height:60px;border-radius:50%;flex-shrink:0}'
+    +'.vf-root .vf-logo{border:2px solid #1a3a8f;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#1a3a8f;line-height:1}'
+    +'.vf-root .vf-logo b{font-size:16px}'
+    +'.vf-root .vf-logo-img{object-fit:cover}'
+    +'.vf-root .vf-shop-th{font-size:19px;font-weight:800}'
+    +'.vf-root .vf-shop-en{font-size:16px;font-weight:800;margin-bottom:3px}'
+    +'.vf-root .vf-shop-line{font-size:10px;color:#222;line-height:1.4}'
+    +'.vf-root .vf-orig-box{border:1px solid #000;padding:3px 11px;text-align:center;font-size:11px;flex-shrink:0}'
+    +'.vf-root .vf-orig-box b{font-size:12px}.vf-root .vf-orig-box .vf-sub{font-size:8.5px;color:#444}'
+    +'.vf-root .vf-titlebar{display:flex;justify-content:space-between;align-items:center;margin-top:9px;gap:8px}'
+    +'.vf-root .vf-title-box{border:1px solid #000;padding:4px 16px;text-align:center}'
+    +'.vf-root .vf-t1{font-size:14px;font-weight:800}.vf-root .vf-t2{font-size:10px;font-weight:700;letter-spacing:1px}'
+    +'.vf-root .vf-docmeta{font-size:12px}.vf-root .vf-r{display:flex;gap:6px;margin-bottom:3px}'
+    +'.vf-root .vf-lbl{color:#333}.vf-root .vf-val{min-width:90px;border-bottom:1px dotted #555;font-weight:700}'
+    +'.vf-root .vf-cust{border:1px solid #000;margin-top:7px;padding:6px 9px;font-size:11.5px}'
+    +'.vf-root .vf-cr{display:flex;margin-bottom:7px;align-items:flex-end}.vf-root .vf-cr:last-child{margin-bottom:0}'
+    +'.vf-root .vf-cb{display:inline-flex;align-items:center;gap:4px;margin-left:12px}'
+    +'.vf-root .vf-cb .vf-box{width:12px;height:12px;border:1px solid #000;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:800}'
+    +'.vf-root table.vf-body{width:100%;border-collapse:collapse;table-layout:fixed;margin-top:7px}'
+    +'.vf-root table.vf-body th,.vf-root table.vf-body td{border:1px solid #000;font-size:11px;padding:3px 5px;overflow:hidden;vertical-align:top}'
+    +'.vf-root table.vf-body th{background:#eee;text-align:center;font-weight:700;vertical-align:middle;-webkit-print-color-adjust:exact;print-color-adjust:exact}'
+    +'.vf-root .vf-body td.vf-num{text-align:center}.vf-root .vf-body td.vf-money{text-align:right;font-variant-numeric:tabular-nums}.vf-root .vf-body td.vf-desc{text-align:left}'
+    +'.vf-root .vf-item-row td{height:24px}'
+    +'.vf-root .vf-leftcell{padding:0}'
+    +'.vf-root .vf-baht{border-bottom:1px solid #000;background:#f3f3f3;padding:6px 8px;text-align:left;font-weight:700;font-size:11px;-webkit-print-color-adjust:exact;print-color-adjust:exact}'
+    +'.vf-root .vf-payblock{padding:6px 8px;font-size:11px}'
+    +'.vf-root .vf-box-i{display:inline-block;width:11px;height:11px;border:1px solid #000;vertical-align:-1px;margin-right:5px;flex-shrink:0}'
+    +'.vf-root .vf-payline{display:flex;align-items:flex-end;gap:5px;margin-bottom:5px}'
+    +'.vf-root .vf-chk{display:grid;grid-template-columns:0.85fr 1fr;gap:5px 10px;margin-bottom:5px}'
+    +'.vf-root .vf-cell{display:flex;align-items:flex-end;gap:5px}'
+    +'.vf-root .vf-fill{flex:1;border-bottom:1px dotted #555;height:12px}'
+    +'.vf-root .vf-note{margin-top:8px;font-size:9.5px;color:#333;line-height:1.5}'
+    +'.vf-root .vf-sumcell{padding:0;vertical-align:top}'
+    +'.vf-root table.vf-sumtable{width:100%;height:100%;border-collapse:collapse;table-layout:fixed}'
+    +'.vf-root table.vf-sumtable td{border:none}'
+    +'.vf-root .vf-sl{font-size:11px;padding:4px 7px;line-height:1.35;vertical-align:middle;border-bottom:1px solid #000}'
+    +'.vf-root .vf-sl .vf-en{font-size:9px;color:#555;margin-top:2px}'
+    +'.vf-root .vf-sv{width:100px;text-align:right;font-size:12px;padding:4px 7px;vertical-align:middle;border-bottom:1px solid #000;border-left:1px solid #000;font-variant-numeric:tabular-nums}'
+    +'.vf-root table.vf-sumtable tr:last-child td{border-bottom:none}'
+    +'.vf-root .vf-grand{font-weight:800;background:#f3f3f3;-webkit-print-color-adjust:exact;print-color-adjust:exact}'
+    +'.vf-root td.vf-sv.vf-grand{font-size:14px}'
+    +'.vf-root .vf-signs{display:flex;border:1px solid #000;border-top:none}'
+    +'.vf-root .vf-sign{flex:1;display:flex;flex-direction:column;padding:8px 8px 9px;text-align:center;font-size:11px}'
+    +'.vf-root .vf-sign:not(:last-child){border-right:1px solid #000}'
+    +'.vf-root .vf-sign .vf-top{height:54px;line-height:1.35}'
+    +'.vf-root .vf-sign .vf-sigline{border-bottom:1px dotted #555;margin:6px 8px 5px}'
+    +'.vf-root .vf-sign .vf-dateline{margin-top:13px;display:flex;justify-content:center;align-items:flex-end;gap:5px;font-size:11px}'
+    +'.vf-root .vf-sign .vf-ddot{display:inline-block;border-bottom:1px dotted #555;width:105px}'
+    +'</style>';
+
+  /* ── ชิ้นส่วนที่เหมือนกันทุกหน้า ── */
+  var headHtml = '<div class="vf-head">'
+      +'<div class="vf-brand">'+logoHtml
+        +'<div>'
+          +'<div class="vf-shop-th">'+(o.shopName||'')+'</div>'
+          +(o.shopAddr?'<div class="vf-shop-line">'+o.shopAddr+'</div>':'')
+          +((o.shopTel||o.shopTel2)?'<div class="vf-shop-line">โทร. '+(o.shopTel||'')+(o.shopTel2?' / '+o.shopTel2:'')+(o.shopTaxId?'&nbsp;&nbsp;เลขประจำตัวผู้เสียภาษี '+o.shopTaxId:'')+'</div>':(o.shopTaxId?'<div class="vf-shop-line">เลขประจำตัวผู้เสียภาษี '+o.shopTaxId+'</div>':''))
+        +'</div>'
+      +'</div>'
+      +'<div class="vf-orig-box"><b>'+origTh+'</b><br><span class="vf-sub">'+origEn+'</span><br><span class="vf-sub">เอกสารออกเป็นชุด</span></div>'
+    +'</div>';
+
+  var custHtml = '<div class="vf-cust">'
+      +'<div class="vf-cr"><span>นามลูกค้า</span>&nbsp;<span class="vf-dot">&nbsp;'+(custName||'')+'</span></div>'
+      +'<div class="vf-cr"><span>ที่อยู่</span>&nbsp;<span class="vf-dot">&nbsp;'+(custAddr||'')+'</span></div>'
+      +'<div class="vf-cr"><span>เลขประจำตัวผู้เสียภาษี</span>&nbsp;<span class="vf-dot" style="max-width:200px">&nbsp;'+(custTaxId||'')+'</span>'
+        +'<span class="vf-cb"><span class="vf-box">X</span> สำนักงานใหญ่</span>'
+        +'<span class="vf-cb"><span class="vf-box"></span> สาขาที่ ......</span>'
+      +'</div>'
+    +'</div>';
+
+  var tableOpen = '<table class="vf-body">'
+      +'<colgroup><col style="width:38px"><col style="width:80px"><col><col style="width:58px"><col style="width:48px"><col style="width:82px"><col style="width:100px"></colgroup>'
+      +'<thead><tr><th>ลำดับ</th><th>รหัสสินค้า</th><th>รายละเอียด</th><th>จำนวน</th><th>หน่วย</th><th>ราคา/หน่วย</th><th>จำนวนเงิน</th></tr></thead>'
+      +'<tbody>';
+
+  /* แถวสรุป (ยอดรวมทั้งเอกสาร) — แสดงเหมือนกันทุกหน้า */
+  var summaryRow = '<tr>'
+          +'<td class="vf-leftcell" colspan="3">'
+            +'<div class="vf-baht">ตัวอักษร&nbsp; ('+bahtText(o.grand)+')</div>'
+            +'<div class="vf-payblock">'
+              +'<div class="vf-payline"><span class="vf-box-i"></span>เงินสด</div>'
+              +'<div class="vf-payline"><span class="vf-box-i"></span>เงินโอนเข้าบัญชี<span class="vf-fill"></span></div>'
+              +'<div class="vf-chk"><div class="vf-cell"><span class="vf-box-i"></span>เช็คธนาคาร<span class="vf-fill"></span></div><div class="vf-cell">สาขา<span class="vf-fill"></span></div></div>'
+              +'<div class="vf-chk"><div class="vf-cell"><span class="vf-box-i" style="visibility:hidden"></span>วันที่<span class="vf-fill"></span></div><div class="vf-cell">จำนวนเงิน<span class="vf-fill"></span></div></div>'
+              +'<div class="vf-note">หมายเหตุ:<br>1. กรณีชำระเป็นเช็ค กรุณาสั่งจ่ายในนาม "'+(o.shopName||'')+'" เท่านั้น<br>2. ร้านฯ ขอสงวนสิทธิ์การรับเปลี่ยน/คืนสินค้า ใหม่ภายใน 6 เดือน อะไหล่เก่า 3 เดือน<br>3. ร้านฯ ขอสงวนสิทธิในการแก้ไขใบกำกับภาษีภายใน 7 วัน นับจากวันที่ระบุไว้ภายในใบกำกับภาษี (ผิด ตก ยกเว้น E. &amp; O.E.)</div>'
+            +'</div>'
+          +'</td>'
+          +'<td class="vf-sumcell" colspan="4">'
+            +'<table class="vf-sumtable">'
+              +'<tr><td class="vf-sl">รวมเงิน<div class="vf-en">TOTAL AMOUNT</div></td><td class="vf-sv">'+fmtM(o.sub)+'</td></tr>'
+              +'<tr><td class="vf-sl">หัก เงินมัดจำ<div class="vf-en">DEPOSIT</div></td><td class="vf-sv">-</td></tr>'
+              +'<tr><td class="vf-sl">มูลค่าสินค้าหลังหักเงินมัดจำ<div class="vf-en">AMOUNT AFTER DEPOSIT</div></td><td class="vf-sv">'+fmtM(o.sub)+'</td></tr>'
+              +'<tr><td class="vf-sl">ภาษีมูลค่าเพิ่ม<div class="vf-en">VAT 7%</div></td><td class="vf-sv">'+fmtM(o.vatAmt)+'</td></tr>'
+              +'<tr><td class="vf-sl vf-grand">ยอดเงินสุทธิ<div class="vf-en">GRAND TOTAL</div></td><td class="vf-sv vf-grand">'+fmtM(o.grand)+'</td></tr>'
+            +'</table>'
+          +'</td>'
+        +'</tr>'
+      +'</tbody></table>';
+
+  var signsHtml = '<div class="vf-signs">'
+      +'<div class="vf-sign"><div class="vf-top">ได้รับสินค้าตามรายการข้างบนนี้ไว้เรียบร้อยแล้ว</div><div class="vf-sigline"></div><div class="vf-role">ผู้รับสินค้า</div><div class="vf-dateline">วันที่ <span class="vf-ddot"></span></div></div>'
+      +'<div class="vf-sign"><div class="vf-top"></div><div class="vf-sigline"></div><div class="vf-role">ผู้สั่งซื้อ</div><div class="vf-dateline">วันที่ <span class="vf-ddot"></span></div></div>'
+      +'<div class="vf-sign"><div class="vf-top">ในนาม '+(o.shopName||'')+'</div><div class="vf-sigline"></div><div class="vf-role">ผู้รับเงิน</div><div class="vf-dateline">&nbsp;</div></div>'
+    +'</div>';
+
+  function titlebar(pageNo) {
+    return '<div class="vf-titlebar">'
+      +'<div style="width:60px"></div>'
+      +'<div style="display:flex;flex-direction:column;align-items:center;gap:3px">'
+        +'<div class="vf-title-box"><div class="vf-t1">ใบกำกับภาษี / ใบเสร็จรับเงิน</div><div class="vf-t2">TAX INVOICE / RECEIPT</div></div>'
+      +'</div>'
+      +'<div class="vf-docmeta"><div class="vf-r"><span class="vf-lbl">เลขที่</span><span class="vf-val">'+(o.docNo||'&nbsp;')+'</span></div>'
+        +'<div class="vf-r"><span class="vf-lbl">วันที่</span><span class="vf-val">'+shortDate+'</span></div>'
+        +(pageCount>1?'<div class="vf-r"><span class="vf-lbl">หน้า</span><span class="vf-val">'+pageNo+' / '+pageCount+'</span></div>':'')
+      +'</div>'
+    +'</div>';
+  }
+
+  /* สรุป+เซ็น อยู่หน้าสุดท้ายเท่านั้น — หน้าอื่นปิดตารางแล้วใส่ "ยอดยกไปหน้าถัดไป" */
+  var plainTableClose = '</tbody></table>';
+  var carryNote = '<div style="text-align:right;font-size:11px;font-weight:700;color:#374151;margin-top:6px">ยอดยกไปหน้าถัดไป &rarr;</div>';
+
+  /* ── ประกอบทีละหน้า ── */
+  var pagesHtml = '';
+  chunks.forEach(function(ch, pg){
+    var slots = ch.isLast ? ROWS_LAST : ROWS_MID;
+    var pageInner = '<div class="vf-page">'
+      + headHtml + titlebar(pg+1) + custHtml
+      + tableOpen + renderRows(ch.start, ch.items, slots)
+      + (ch.isLast ? (summaryRow + signsHtml) : (plainTableClose + carryNote))
+      + '</div>';
+    pagesHtml += (pg < chunks.length-1)
+      ? '<div style="page-break-after:always">'+pageInner+'</div>'
+      : pageInner;
+  });
+
+  return STYLE + '<div class="vf-root">' + pagesHtml + '</div>';
+}
+
 function showQuote(woId) {
   _quoteVAT = false;
   document.getElementById('m-quote-title').textContent = '🧾 ใบเสนอราคา — '+woId;
@@ -8141,7 +8388,7 @@ function printReceipt() {
   var content;
   if (_receiptVAT) {
     var splitMode   = SHOP_SETTINGS.vatSplitMode  || 'split';
-    var copyCount   = Math.max(1, parseInt(SHOP_SETTINGS.vatCopyCount)||2);
+    var vatCopies   = ['ต้นฉบับ', 'สำเนา', 'สำหรับบัญชี'];  /* พิมพ์ 3 ชุดเสมอ */
     var vtPfx       = SHOP_SETTINGS.vtPrefix || 'VAT-2569-';
     var vtN         = SHOP_SETTINGS.vtNext   || 1;
     var vtP         = SHOP_SETTINGS.vtPad    || 3;
@@ -8157,14 +8404,14 @@ function printReceipt() {
 
       var vatDocs = [];
       if (hasParts) {
-        vatDocs.push(buildBillHTML(woId, true, undefined, {setType:'parts', copyLabel:'ต้นฉบับ', docNo:docNoP}));
-        for (var cp=0; cp<copyCount; cp++)
-          vatDocs.push(buildBillHTML(woId, true, undefined, {setType:'parts', copyLabel:'สำเนา', docNo:docNoP}));
+        vatCopies.forEach(function(cl){
+          vatDocs.push(buildBillHTML(woId, true, undefined, {setType:'parts', copyLabel:cl, docNo:docNoP}));
+        });
       }
       if (hasLabor) {
-        vatDocs.push(buildBillHTML(woId, true, undefined, {setType:'labor', copyLabel:'ต้นฉบับ', docNo:docNoL}));
-        for (var cl=0; cl<copyCount; cl++)
-          vatDocs.push(buildBillHTML(woId, true, undefined, {setType:'labor', copyLabel:'สำเนา', docNo:docNoL}));
+        vatCopies.forEach(function(cl){
+          vatDocs.push(buildBillHTML(woId, true, undefined, {setType:'labor', copyLabel:cl, docNo:docNoL}));
+        });
       }
       content = vatDocs.map(function(d, i){
         return '<div style="'+(i<vatDocs.length-1?'page-break-after:always':'')+'">' + d + '</div>';
@@ -8180,13 +8427,13 @@ function printReceipt() {
       content = '<div class="no-print" style="margin-bottom:12px;padding:10px 14px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;font-size:12.5px;color:#1e40af"><b>📋 '+printHint+'</b></div>' + content;
 
     } else {
-      /* ── ใบเดียว: 1 เลข, copyCount+1 ใบ ── */
+      /* ── ใบเดียว: 1 เลข, 3 ชุด (ต้นฉบับ/สำเนา/สำหรับบัญชี) ── */
       var docNo1 = vtPfx + String(vtN).padStart(vtP,'0');
       SHOP_SETTINGS.vtNext = vtN + 1;
       _vatDocNoP = docNo1; _vatDocNoL = '';
-      var singleDocs = [buildBillHTML(woId, true, undefined, {copyLabel:'ต้นฉบับ', docNo:docNo1})];
-      for (var cs=0; cs<copyCount; cs++)
-        singleDocs.push(buildBillHTML(woId, true, undefined, {copyLabel:'สำเนา', docNo:docNo1}));
+      var singleDocs = vatCopies.map(function(cl){
+        return buildBillHTML(woId, true, undefined, {copyLabel:cl, docNo:docNo1});
+      });
       content = singleDocs.map(function(d, i){
         return '<div style="'+(i<singleDocs.length-1?'page-break-after:always':'')+'">' + d + '</div>';
       }).join('');
@@ -14539,35 +14786,100 @@ function updateBRModelDD() {
 }
 
 /* ── lookup plate (autofill from WORK_ORDERS/CUSTOMERS) ── */
+/* เติมข้อมูลรถ/ลูกค้า ลงฟอร์มแผนกสี */
+function applyBRCar(o) {
+  var bSel = document.getElementById('br-brand');
+  if (bSel && o.brand) {
+    var known = (typeof CAR_BRANDS!=='undefined') && CAR_BRANDS.includes(o.brand);
+    bSel.value = known ? o.brand : 'อื่นๆ';
+    if (typeof updateBRModelDD==='function') updateBRModelDD();
+    if (!known) { var bo = document.getElementById('br-brand-other'); if(bo) bo.value = o.brand; }
+  }
+  var mSel = document.getElementById('br-model');
+  if (mSel && o.model) {
+    var models = (typeof CAR_MODELS!=='undefined' && CAR_MODELS[o.brand]) ? CAR_MODELS[o.brand] : ['อื่นๆ'];
+    if (models.includes(o.model)) mSel.value = o.model;
+    else { var mo = document.getElementById('br-model-other'); if(mo) mo.value = o.model; }
+  }
+  var yr = document.getElementById('br-year');      if(yr && o.year)     yr.value = o.year;
+  var cn = document.getElementById('br-cust-name'); if(cn && o.custName) cn.value = o.custName;
+  var ph = document.getElementById('br-phone');     if(ph && o.phone)    ph.value = o.phone;
+}
+
 function brLookupPlate(val) {
   var badge = document.getElementById('br-lookup-badge');
-  val = (val||'').trim().replace(/\s/g,'').toLowerCase();
-  if (!val || val.length < 2) { if (badge) badge.textContent=''; return; }
-  /* search existing WO or BODY_ORDERS for car data */
-  var found = null;
-  WORK_ORDERS.forEach(function(w){
-    if (!found && w.plate.replace(/\s/g,'').toLowerCase().startsWith(val)) found = w;
-  });
-  if (!found) { BODY_ORDERS.forEach(function(b){
-    if (!found && b.plate.replace(/\s/g,'').toLowerCase().startsWith(val)) found = b;
-  }); }
-  if (found) {
-    /* autofill car info */
-    var bSel = document.getElementById('br-brand');
-    if (bSel && found.brand) {
-      bSel.value = CAR_BRANDS.includes(found.brand) ? found.brand : 'อื่นๆ';
-      updateBRModelDD();
-      if (found.brand && !CAR_BRANDS.includes(found.brand)) {
-        var bo = document.getElementById('br-brand-other'); if(bo) bo.value = found.brand;
-      }
-    }
-    var yr = document.getElementById('br-year'); if(yr && found.year) yr.value = found.year;
-    var cn = document.getElementById('br-cust-name'); if(cn && found.custName) cn.value = found.custName;
-    var ph = document.getElementById('br-phone'); if(ph && found.phone) ph.value = found.phone;
-    if (badge) badge.textContent = '✅ พบข้อมูลรถ';
-  } else {
+  var plate = (val||'').trim();
+  var dropdown = document.getElementById('br-plate-dropdown');
+
+  if (plate.length < 1) {
     if (badge) badge.textContent = '';
+    if (dropdown) dropdown.style.display = 'none';
+    return;
   }
+  var sp = plate.replace(/\s/g,'').toLowerCase();
+
+  /* รวมแหล่งข้อมูล: ลูกค้าซ่อม + งานซ่อมเก่า + งานสีเก่า (ตัดทะเบียนซ้ำ) */
+  var seen = {}, cars = [];
+  function add(o){ if(!o.plate) return; var k=o.plate.replace(/\s/g,'').toLowerCase(); if(seen[k]) return; seen[k]=1; cars.push(o); }
+  if (typeof CUSTOMERS!=='undefined') CUSTOMERS.forEach(function(c){
+    if (c.type!=='repair') return;
+    (c.cars||[]).forEach(function(car){ add({ plate:car.plate, brand:car.brand, model:car.model, year:car.year,
+      custName:(typeof custDisplayName==='function'?custDisplayName(c):c.name), phone:c.phone }); });
+  });
+  if (typeof WORK_ORDERS!=='undefined') WORK_ORDERS.forEach(function(w){ add({ plate:w.plate, brand:w.brand, model:w.model, year:w.year, custName:w.custName, phone:w.phone }); });
+  if (typeof BODY_ORDERS!=='undefined') BODY_ORDERS.forEach(function(b){ add({ plate:b.plate, brand:b.brand, model:b.model, year:b.year, custName:b.custName, phone:b.phone }); });
+
+  var matches = cars.filter(function(o){ var cp=o.plate.replace(/\s/g,'').toLowerCase(); return cp.includes(sp)||sp.includes(cp); });
+  var exact = matches.filter(function(o){ return o.plate.replace(/\s/g,'').toLowerCase()===sp; });
+
+  /* สร้าง dropdown ถ้ายังไม่มี */
+  if (!dropdown) {
+    var inp = document.getElementById('br-plate');
+    if (inp) {
+      dropdown = document.createElement('div');
+      dropdown.id = 'br-plate-dropdown';
+      dropdown.style.cssText = 'position:absolute;left:0;right:0;top:100%;z-index:500;background:#fff;border:1px solid var(--border);border-radius:8px;box-shadow:var(--shadow);max-height:220px;overflow-y:auto';
+      inp.parentNode.style.position = 'relative';
+      inp.parentNode.appendChild(dropdown);
+    }
+  }
+
+  /* ทะเบียนตรงเป๊ะ → เติมข้อมูลเลย */
+  if (exact.length) {
+    if (dropdown) dropdown.style.display = 'none';
+    applyBRCar(exact[0]);
+    if (badge) badge.textContent = '✅ พบข้อมูลรถ';
+    return;
+  }
+
+  /* มีหลายรายการ → โชว์ dropdown ให้เลือกทะเบียนเต็ม */
+  if (matches.length) {
+    if (dropdown) {
+      dropdown.style.display = '';
+      dropdown.innerHTML = matches.slice(0,10).map(function(m){
+        return '<div class="br-plate-opt" data-plate="'+m.plate+'" style="display:flex;align-items:center;gap:10px;padding:9px 14px;cursor:pointer;border-bottom:1px solid var(--border)">'
+          +'<div style="font-size:14px;font-weight:700;color:var(--accent)">'+m.plate+'</div>'
+          +'<div style="flex:1"><div style="font-size:13px;font-weight:600">'+(m.custName||'')+'</div>'
+          +'<div style="font-size:11.5px;color:var(--text3)">'+((m.brand||'')+' '+(m.model||'')).trim()+(m.phone?' | '+m.phone:'')+'</div></div>'
+          +'</div>';
+      }).join('');
+      dropdown.querySelectorAll('.br-plate-opt').forEach(function(opt){
+        opt.onmouseover = function(){ this.style.background='var(--accent-light)'; };
+        opt.onmouseout  = function(){ this.style.background=''; };
+        opt.onclick = function(){
+          var pl = this.dataset.plate;
+          document.getElementById('br-plate').value = pl;
+          if (dropdown) dropdown.style.display = 'none';
+          brLookupPlate(pl);
+        };
+      });
+    }
+    if (badge) badge.innerHTML = '<span style="font-size:12px;color:var(--text3)">พบ '+matches.length+' รายการ</span>';
+    return;
+  }
+
+  if (dropdown) dropdown.style.display = 'none';
+  if (badge) badge.textContent = '';
 }
 
 function openNewBRForm() {
