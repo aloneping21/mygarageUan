@@ -985,6 +985,7 @@ tbody tr:hover td { background: #fafbfc; }
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
           <button class="btn btn-outline btn-sm" onclick="exportBackup()" style="border-color:#3b82f6;color:#3b82f6;font-weight:700">📤 Export Backup</button>
           <button class="btn btn-outline btn-sm" onclick="importBackup()" style="border-color:#059669;color:#059669;font-weight:700">📥 Import Backup</button>
+          <button class="btn btn-outline btn-sm" onclick="checkFixDuplicateWO()" style="border-color:#d97706;color:#d97706;font-weight:700" title="ตรวจและซ่อมเลขงานซ่อม (WO) ที่ซ้ำกัน">🔧 ซ่อมเลข WO ซ้ำ</button>
           <button class="btn btn-outline btn-sm" onclick="clearLocalStorage()" style="border-color:#dc2626;color:#dc2626">🗑 ล้าง Cache</button>
           <button class="btn btn-primary" onclick="saveSettings()">💾 บันทึกการตั้งค่า</button>
         </div>
@@ -4829,8 +4830,13 @@ function saveWO() {
   if (vin && vin.replace(/\s/g,'').length !== 17) { showToast('❌ เลขตัวถัง (VIN) ต้องมี 17 ตัวอักษรพอดี'); document.getElementById('wo-vin').focus(); return; }
 
   var today = new Date().toLocaleDateString('th-TH',{day:'2-digit',month:'2-digit',year:'2-digit'});
+  /* สร้างเลข WO แบบกันซ้ำ: ถ้าเลขถูกใช้แล้วให้ข้ามไปเลขถัดไป */
+  var _woPfx = (SHOP_SETTINGS.woPrefix||'WO-'), _woPad = (SHOP_SETTINGS.woPad||4);
+  var _woN   = SHOP_SETTINGS.woNext || nextWOId;
+  var _woId  = _woPfx + String(_woN).padStart(_woPad,'0');
+  while (WORK_ORDERS.some(function(x){ return x.id === _woId; })) { _woN++; _woId = _woPfx + String(_woN).padStart(_woPad,'0'); }
   var wo = {
-    id:(SHOP_SETTINGS.woPrefix||'WO-')+String(SHOP_SETTINGS.woNext||nextWOId).padStart(SHOP_SETTINGS.woPad||4,'0'), date:today, doneDate:'',
+    id:_woId, date:today, doneDate:'',
     plate, vin, brand, model, year, engine,
     mileage:(document.getElementById('wo-mileage').value||'').trim(),
     custName: woClass==='juristic'
@@ -4844,9 +4850,9 @@ function saveWO() {
     status:'ยังไม่ได้เริ่มซ่อม', parts:[], labor:[], mechanics:[]
   };
   WORK_ORDERS.unshift(wo);
-  /* Increment WO counter in settings */
-  if (typeof SHOP_SETTINGS !== 'undefined') { SHOP_SETTINGS.woNext = (SHOP_SETTINGS.woNext||nextWOId) + 1; }
-  nextWOId++;
+  /* Increment WO counter in settings (จากเลขที่ใช้จริง กันเลขค้าง) */
+  if (typeof SHOP_SETTINGS !== 'undefined') { SHOP_SETTINGS.woNext = _woN + 1; }
+  nextWOId = _woN + 1;
 
   /* Auto-save new customer if checkbox checked */
   var saveChk = document.getElementById('wo-save-cust-chk');
@@ -7048,7 +7054,9 @@ function restoreWO(woId) {
 function goBackFromWODetail() {
   _returnMode = false;
   nav('workorders');
-  renderWOList(null);
+  /* คงผลค้นหาตามทะเบียนในช่องค้นหาไว้ ไม่ต้องพิมพ์ใหม่ */
+  var _q = ((document.getElementById('wo-search')||{}).value||'').trim();
+  if (_q) filterWOList(_q); else renderWOList(null);
 }
 
 function openWODetail(woId) {
@@ -7192,6 +7200,17 @@ function renderWODetailContent(woId, returnMode) {
 
   // Left col
   var leftHtml = '<div>'
+    /* การ์ดวันที่ — วันเปิดงาน (นำรถเข้า) + วันที่เสร็จ */
+    +'<div class="card" style="margin-bottom:14px"><div style="padding:12px 16px;display:grid;grid-template-columns:'+((isDone&&w.doneDate)?'1fr 1fr':'1fr')+';gap:12px">'
+    +'<div style="display:flex;flex-direction:column;gap:2px">'
+      +'<span style="font-size:11px;color:var(--text3);font-weight:700">📅 วันเปิดงาน (นำรถเข้า)</span>'
+      +'<span style="font-size:16px;font-weight:800;color:var(--accent)">'+(w.date||'—')+'</span>'
+    +'</div>'
+    +((isDone&&w.doneDate)?'<div style="display:flex;flex-direction:column;gap:2px">'
+      +'<span style="font-size:11px;color:var(--text3);font-weight:700">✅ วันที่เสร็จ</span>'
+      +'<span style="font-size:16px;font-weight:800;color:var(--green)">'+w.doneDate+'</span>'
+    +'</div>':'')
+    +'</div></div>'
     +'<div class="card" style="margin-bottom:14px"><div class="card-header"><span>🚗</span><span class="card-title">ข้อมูลรถ</span></div>'
     +'<div style="padding:14px 18px">'
     +'<div class="car-plate" style="font-size:20px;font-weight:800;margin-bottom:10px">'+w.plate+'</div>'
@@ -7214,8 +7233,6 @@ function renderWODetailContent(woId, returnMode) {
     +'<span style="color:var(--text3);font-size:12px;font-weight:600">ลูกค้า</span><span style="font-weight:600">'+w.custName+'</span>'
     +(w.contact?'<span style="color:var(--text3);font-size:12px;font-weight:600">ผู้ติดต่อ</span><span>'+w.contact+'</span>':'')
     +'<span style="color:var(--text3);font-size:12px;font-weight:600">โทร</span><span class="mono">'+(w.phone||'—')+'</span>'
-    +'<span style="color:var(--text3);font-size:12px;font-weight:600">วันรับ</span><span>'+w.date+'</span>'
-    +(isDone&&w.doneDate?'<span style="color:var(--text3);font-size:12px;font-weight:600">เสร็จวันที่</span><span>'+w.doneDate+'</span>':'')
     +(canEdit||(w.mechanics&&w.mechanics.length)?'<span style="color:var(--text3);font-size:12px;font-weight:600;grid-column:1/-1;margin-top:4px;display:flex;align-items:center;gap:6px">ช่างผู้ซ่อม'+(canEdit?'<button style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:12px;padding:0 2px;line-height:1" title="แก้ไขช่างผู้รับงาน" onclick="openMechEdit(\''+woId+'\')">✏️</button>':'')+'</span>':'')
     +(canEdit||(w.mechanics&&w.mechanics.length)?'<div id="wo-mech-chips-'+woId+'" style="grid-column:2;display:flex;gap:6px;flex-wrap:wrap;margin-top:-4px;align-items:center">'+((w.mechanics&&w.mechanics.length)?w.mechanics.map(function(id){ var m=MECHANICS.find(function(x){ return x.id===id; }); return m?'<span style="background:var(--accent-light);color:var(--accent);padding:2px 8px;border-radius:8px;font-size:12px;font-weight:600">👷 '+m.nickname+'</span>':''; }).join(''):'<span style="color:var(--text3);font-size:12px">ยังไม่มอบหมายช่าง</span>')+'</div>':'')
     +'</div></div></div>'
@@ -7476,16 +7493,27 @@ function applyWOStatus() {
   if (!picked) { closeM('m-status-pick'); return; }
   var w = WORK_ORDERS.find(function(x){ return x.id===woId; });
   if (!w) return;
+  var prevStatus = w.status;
+  var reopened = false;
   w.status = picked.value;
+  /* จัดการวันที่เสร็จ: ตั้งเมื่อเปลี่ยนเป็นเสร็จ, ล้างเมื่อย้อนกลับจากเสร็จ (ออกบิลใหม่ได้วันใหม่) */
+  if (w.status === 'เสร็จแล้ว') {
+    if (!w.doneDate) w.doneDate = new Date().toLocaleDateString('th-TH',{day:'2-digit',month:'2-digit',year:'2-digit'});
+  } else if (prevStatus === 'เสร็จแล้ว') {
+    w.doneDate = '';
+    reopened = true;
+  }
   // Save mechanics if กำลังซ่อม
   if (w.status === 'กำลังซ่อม') {
     var selected = Array.from(document.querySelectorAll('input[name="wo-mech-pick"]:checked')).map(function(c){ return c.value; });
     w.mechanics = selected;
   }
   closeM('m-status-pick');
+  if (typeof saveToLocalStorage === 'function') saveToLocalStorage();
   openWODetail(woId);
   renderWOList(null);
-  showToast('✅ เปลี่ยนสถานะเป็น '+w.status);
+  if (reopened) showToast('↩️ เปิดงานใหม่เป็น "'+w.status+'" — ล้างวันที่เสร็จแล้ว พอซ่อมเสร็จให้ออกบิลใหม่อีกครั้ง');
+  else showToast('✅ เปลี่ยนสถานะเป็น '+w.status);
 }
 
 /* ── Mechanic edit (standalone, works on any WO status) ────── */
@@ -13974,6 +14002,58 @@ function updateWdPrice(i, val) {
    LOCALSTORAGE PERSISTENCE
 ══════════════════════════════════════════ */
 var _autoSaveTimer = null;
+
+/* ── ซ่อมเลข WO ซ้ำ: ออกเลขใหม่ให้ตัวที่ซ้ำ + แก้อ้างอิงใบเสร็จ/ใบกำกับ/เคลม ตาม plate ── */
+function fixDuplicateWOIds() {
+  if (typeof WORK_ORDERS === 'undefined') return [];
+  var pfx = (SHOP_SETTINGS.woPrefix||'WO-'), pad = (SHOP_SETTINGS.woPad||4);
+  var used = {}; WORK_ORDERS.forEach(function(w){ used[w.id] = true; });
+  var maxNum = 0;
+  WORK_ORDERS.forEach(function(w){ var n=parseInt(String(w.id).replace(/\D/g,'')); if(!isNaN(n)&&n>maxNum) maxNum=n; });
+  var counter = Math.max(maxNum+1, (SHOP_SETTINGS.woNext||0));
+  function nextFreeId(){ var id; do { id = pfx+String(counter++).padStart(pad,'0'); } while (used[id]); used[id]=true; return id; }
+
+  var fixes = [], firstSeen = {};
+  WORK_ORDERS.forEach(function(w){
+    if (!firstSeen[w.id]) { firstSeen[w.id] = true; return; }  /* เก็บตัวแรกไว้ id เดิม */
+    var oldId = w.id, newId = nextFreeId();
+    w.id = newId;
+    fixes.push({ oldId:oldId, newId:newId, plate:(w.plate||'') });
+  });
+  if (!fixes.length) return [];
+
+  /* แก้อ้างอิง: ใบไหน woId ตรง oldId และ plate ตรงกับตัวที่เปลี่ยนเลข → ย้ายไป newId */
+  function norm(s){ return (s||'').replace(/\s/g,'').toLowerCase(); }
+  function fixRefs(arr){
+    if (!Array.isArray(arr)) return;
+    arr.forEach(function(r){
+      for (var i=0;i<fixes.length;i++){
+        var f=fixes[i];
+        if (r.woId === f.oldId && norm(r.plate) === norm(f.plate)) { r.woId = f.newId; break; }
+      }
+    });
+  }
+  fixRefs(typeof RECEIPTS!=='undefined'?RECEIPTS:null);
+  fixRefs(typeof INVOICES!=='undefined'?INVOICES:null);
+  fixRefs(typeof CLAIMS!=='undefined'?CLAIMS:null);
+
+  if (typeof SHOP_SETTINGS!=='undefined') SHOP_SETTINGS.woNext = counter;
+  saveToLocalStorage();
+  return fixes;
+}
+
+function checkFixDuplicateWO() {
+  if (typeof WORK_ORDERS === 'undefined') { showToast('❌ ไม่พบข้อมูลงานซ่อม'); return; }
+  var seen = {}, dupCount = 0;
+  WORK_ORDERS.forEach(function(w){ if (seen[w.id]) dupCount++; else seen[w.id]=true; });
+  if (!dupCount) { showToast('✅ ไม่พบเลข WO ซ้ำ'); return; }
+  if (!window.confirm('พบเลข WO ซ้ำ '+dupCount+' รายการ\n\nจะออกเลขใหม่ให้ตัวที่ซ้ำ และแก้ใบเสร็จ/ใบกำกับให้ตรงคันอัตโนมัติ\n\n⚠️ แนะนำกด "Export Backup" ก่อน\nยืนยันซ่อมเลย?')) return;
+  var fixes = fixDuplicateWOIds();
+  var lines = fixes.slice(0,12).map(function(f){ return f.oldId+' → '+f.newId+'  ('+f.plate+')'; }).join('\n');
+  showToast('✅ ซ่อมแล้ว '+fixes.length+' รายการ');
+  try { if (typeof nav==='function') nav('workorders'); } catch(e){}
+  window.alert('ซ่อมเลข WO ซ้ำเสร็จ '+fixes.length+' รายการ:\n\n'+lines+(fixes.length>12?'\n...':''));
+}
 
 function saveToLocalStorage() {
   try {
