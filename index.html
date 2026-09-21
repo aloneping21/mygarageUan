@@ -8267,7 +8267,7 @@ function buildVatInvoiceHTML(w, o) {
               +'<div class="vf-payline"><span class="vf-box-i"></span>เงินโอนเข้าบัญชี<span class="vf-fill"></span></div>'
               +'<div class="vf-chk"><div class="vf-cell"><span class="vf-box-i"></span>เช็คธนาคาร<span class="vf-fill"></span></div><div class="vf-cell">สาขา<span class="vf-fill"></span></div></div>'
               +'<div class="vf-chk"><div class="vf-cell"><span class="vf-box-i" style="visibility:hidden"></span>วันที่<span class="vf-fill"></span></div><div class="vf-cell">จำนวนเงิน<span class="vf-fill"></span></div></div>'
-              +'<div class="vf-note">หมายเหตุ:<br>1. กรณีชำระเป็นเช็ค กรุณาสั่งจ่ายในนาม "'+(o.shopName||'')+'" เท่านั้น<br>2. ร้านฯ ขอสงวนสิทธิ์การรับเปลี่ยน/คืนสินค้า ใหม่ภายใน 6 เดือน อะไหล่เก่า 3 เดือน<br>3. ร้านฯ ขอสงวนสิทธิในการแก้ไขใบกำกับภาษีภายใน 7 วัน นับจากวันที่ระบุไว้ภายในใบกำกับภาษี (ผิด ตก ยกเว้น E. &amp; O.E.)</div>'
+              +'<div class="vf-note">หมายเหตุ:<br>1. กรณีชำระเป็นเช็ค กรุณาสั่งจ่ายในนาม "อ้วนมอเตอร์โฟล์ค" เท่านั้น<br>2. ร้านฯ ขอสงวนสิทธิ์การรับเปลี่ยน/คืนสินค้า ใหม่ภายใน 6 เดือน อะไหล่เก่า 3 เดือน<br>3. ร้านฯ ขอสงวนสิทธิในการแก้ไขใบกำกับภาษีภายใน 7 วัน นับจากวันที่ระบุไว้ภายในใบกำกับภาษี (ผิด ตก ยกเว้น E. &amp; O.E.)</div>'
             +'</div>'
           +'</td>'
           +'<td class="vf-sumcell" colspan="4">'
@@ -8283,16 +8283,20 @@ function buildVatInvoiceHTML(w, o) {
       +'</tbody></table>';
 
   var signsHtml = '<div class="vf-signs">'
-      +'<div class="vf-sign"><div class="vf-top">ได้รับสินค้าตามรายการข้างบนนี้ไว้เรียบร้อยแล้ว</div><div class="vf-sigline"></div><div class="vf-role">ผู้รับสินค้า</div><div class="vf-dateline">วันที่ <span class="vf-ddot"></span></div></div>'
+      +'<div class="vf-sign"><div class="vf-top">ได้รับสินค้าตามรายการข้างบนนี้ไว้เรียบร้อย</div><div class="vf-sigline"></div><div class="vf-role">ผู้รับสินค้า</div><div class="vf-dateline">วันที่ <span class="vf-ddot"></span></div></div>'
       +'<div class="vf-sign"><div class="vf-top"></div><div class="vf-sigline"></div><div class="vf-role">ผู้สั่งซื้อ</div><div class="vf-dateline">วันที่ <span class="vf-ddot"></span></div></div>'
-      +'<div class="vf-sign"><div class="vf-top">ในนาม '+(o.shopName||'')+'</div><div class="vf-sigline"></div><div class="vf-role">ผู้รับเงิน</div><div class="vf-dateline">&nbsp;</div></div>'
+      +'<div class="vf-sign"><div class="vf-top">ในนาม อ้วนมอเตอร์โฟล์ค</div><div class="vf-sigline"></div><div class="vf-role">ผู้รับเงิน</div><div class="vf-dateline">&nbsp;</div></div>'
     +'</div>';
 
   function titlebar(pageNo) {
+    /* ต้นฉบับ = ชื่อปกติ, สำเนา/สำหรับบัญชี = เติม "สำเนา" / "COPY " */
+    var _isOrig  = (origTh === 'ต้นฉบับ');
+    var _titleTh = (_isOrig ? '' : 'สำเนา') + 'ใบกำกับภาษี / ใบเสร็จรับเงิน';
+    var _titleEn = (_isOrig ? '' : 'COPY ') + 'TAX INVOICE / RECEIPT';
     return '<div class="vf-titlebar">'
       +'<div style="width:60px"></div>'
       +'<div style="display:flex;flex-direction:column;align-items:center;gap:3px">'
-        +'<div class="vf-title-box"><div class="vf-t1">ใบกำกับภาษี / ใบเสร็จรับเงิน</div><div class="vf-t2">TAX INVOICE / RECEIPT</div></div>'
+        +'<div class="vf-title-box"><div class="vf-t1">'+_titleTh+'</div><div class="vf-t2">'+_titleEn+'</div></div>'
       +'</div>'
       +'<div class="vf-docmeta"><div class="vf-r"><span class="vf-lbl">เลขที่</span><span class="vf-val">'+(o.docNo||'&nbsp;')+'</span></div>'
         +'<div class="vf-r"><span class="vf-lbl">วันที่</span><span class="vf-val">'+shortDate+'</span></div>'
@@ -10685,9 +10689,16 @@ function searchPSItem(q) {
   var inp = document.getElementById('ps-search');
   if (inp) {
     var rect = inp.getBoundingClientRect();
-    res.style.cssText = 'position:fixed;z-index:9999;background:#fff;border:1px solid var(--border);'
-      +'border-radius:8px;box-shadow:var(--shadow);width:'+inp.offsetWidth+'px;max-height:240px;overflow-y:auto;'
-      +'top:'+(rect.bottom+4)+'px;left:'+rect.left+'px';
+    var vh    = window.innerHeight || document.documentElement.clientHeight;
+    var below = vh - rect.bottom - 12;   /* พื้นที่ใต้ช่องค้นหา */
+    var above = rect.top - 12;            /* พื้นที่เหนือช่องค้นหา */
+    var openUp = below < 180 && above > below;             /* ใต้แคบ → เปิดขึ้นบน */
+    var maxH   = Math.max(120, Math.min(300, openUp ? above : below));  /* จำกัดไม่ให้ทะลุขอบจอ */
+    var css = 'position:fixed;z-index:9999;background:#fff;border:1px solid var(--border);'
+      +'border-radius:8px;box-shadow:var(--shadow);width:'+inp.offsetWidth+'px;'
+      +'max-height:'+maxH+'px;overflow-y:auto;left:'+rect.left+'px;';
+    css += openUp ? ('bottom:'+(vh - rect.top + 4)+'px;') : ('top:'+(rect.bottom + 4)+'px;');
+    res.style.cssText = css;
   }
   res.style.display = matches.length ? '' : 'none';
   res.innerHTML = '';
