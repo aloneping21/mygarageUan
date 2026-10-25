@@ -1583,8 +1583,8 @@ tbody tr:hover td { background: #fafbfc; }
       <!-- บุคคลธรรมดา -->
       <input type="hidden" id="nc-prefix" value="คุณ" />
       <div class="form-group" id="nc-person-name-wrap">
-        <label class="lbl">ชื่อ-นามสกุล <span style="color:var(--red)">*</span></label>
-        <input class="ctrl" id="nc-name" placeholder="ชื่อ นามสกุล" />
+        <label class="lbl">ชื่อ-นามสกุล <span style="font-size:11px;color:var(--text3);font-weight:400">(ไม่บังคับ)</span></label>
+        <input class="ctrl" id="nc-name" placeholder="ชื่อ นามสกุล (ถ้าไม่ระบุ จะใช้ทะเบียนรถแทน)" />
       </div>
       <div class="form-group" id="nc-person-company-wrap">
         <label class="lbl">บริษัท / ร้านค้า <span style="font-size:11px;color:var(--text3);font-weight:400">(ถ้ามี)</span></label>
@@ -2689,7 +2689,7 @@ function nav(id, el) {
   if (id === 'workorders') { try { initWOList(); } catch(e){} }
   if (id === 'receipts') { try { initReceipts(); } catch(e){} }
   if (id === 'stock') { try { initStock(); } catch(e){} }
-  if (id === 'customers') { try { var _ce=['owner','manager'].includes(currentUser?currentUser.role:''); renderAllCustomers(_ce); } catch(e){} }
+  if (id === 'customers') { try { var _ce=['owner','manager'].includes(currentUser?currentUser.role:''); renderAllCustomers(_ce); /* restore last search */ var _si=document.getElementById('cust-search'); if(_si&&_custLastQ){_si.value=_custLastQ; filterCustomers(_custLastQ);} } catch(e){} }
   if (id === 'claims')      { try { initClaims(); } catch(e){} }
   if (id === 'body-paint')  { try { initBodyPaint(); } catch(e){} }
 }
@@ -3462,7 +3462,7 @@ var carFormCount = 0;
 
 var AV_COLORS = ['linear-gradient(135deg,#2563eb,#7c3aed)','linear-gradient(135deg,#059669,#0d9488)','linear-gradient(135deg,#ea580c,#d97706)','linear-gradient(135deg,#7c3aed,#db2777)','linear-gradient(135deg,#0ea5e9,#2563eb)','linear-gradient(135deg,#16a34a,#2563eb)'];
 
-function custAv(c)    { return c.custClass==='juristic' ? (c.name||'?').trim()[0]||'?' : ((c.prefix||'')+c.name).trim()[0]||'?'; }
+function custAv(c)    { if (!c.name) return '🚗'; return c.custClass==='juristic' ? (c.name||'?').trim()[0]||'?' : ((c.prefix||'')+c.name).trim()[0]||'?'; }
 function custDisplayName(c) {
   if (c.custClass==='juristic') {
     var pfx = c.prefix||'บริษัท';
@@ -3470,7 +3470,64 @@ function custDisplayName(c) {
     if (pfx==='ห้างหุ้นส่วน') return 'ห้างหุ้นส่วนจำกัด '+c.name;
     return pfx+' '+c.name;
   }
+  if (!c.name) return '(ไม่ระบุชื่อ)';
   return (c.prefix ? c.prefix+' ' : '')+c.name;
+}
+/* ชื่อที่จะเก็บลงเอกสาร (WO/ใบงาน) — ไม่มีชื่อ = '' */
+function custDocName(c) { return (c && c.name) ? custDisplayName(c) : ''; }
+/* ชื่อลูกค้าบน WO สำหรับหน้าจอ / สำหรับพิมพ์ */
+function woCustLabel(w) { return (w && w.custName) || '(ไม่ระบุชื่อ)'; }
+function woCustPrint(w) { return (w && w.custName) || 'ลูกค้าเงินสด'; }
+
+/* ── ผูก WO / งานสีตัวถัง / เคลม กับรหัสลูกค้า (custId) ──
+   เอกสารเก่าที่ยังไม่มี custId: หาจากทะเบียนก่อน แล้วค่อยเบอร์ (ต้องเจอคนเดียวเท่านั้น) */
+function findCustIdFor(doc) {
+  if (typeof CUSTOMERS === 'undefined' || !doc) return null;
+  var np = (doc.plate||'').replace(/\s/g,'').toLowerCase();
+  if (np && np !== '—') {
+    var byPlate = CUSTOMERS.filter(function(c){
+      return (c.cars||[]).some(function(car){ return (car.plate||'').replace(/\s/g,'').toLowerCase() === np; });
+    });
+    if (byPlate.length === 1) return byPlate[0].id;
+  }
+  if (doc.phone) {
+    var byPhone = CUSTOMERS.filter(function(c){ return c.phone && c.phone === doc.phone; });
+    if (byPhone.length === 1) return byPhone[0].id;
+  }
+  return null;
+}
+function linkDocsToCustIds() {
+  var changed = false;
+  [typeof WORK_ORDERS!=='undefined'?WORK_ORDERS:[], typeof BODY_ORDERS!=='undefined'?BODY_ORDERS:[]].forEach(function(list){
+    list.forEach(function(d){
+      /* ชื่อชั่วคราวแบบเก่า → ว่าง */
+      if (d.custName==='ลูกค้าใหม่' || d.custName==='คุณ ลูกค้าใหม่') { d.custName=''; changed = true; }
+      if (d.custId) return;
+      var id = findCustIdFor(d);
+      if (id) { d.custId = id; changed = true; }
+    });
+  });
+  return changed;
+}
+/* แก้ชื่อลูกค้าแล้ว → อัปเดต WO ทุกใบ (เสร็จแล้ว/ยังไม่เสร็จ), งานสีตัวถัง, เคลม
+   ใบเสร็จ / ใบกำกับภาษีที่ออกแล้ว ไม่แตะ */
+function syncCustToDocs(c) {
+  if (!c) return 0;
+  linkDocsToCustIds();
+  var nm = custDocName(c), n = 0, woIds = {};
+  [typeof WORK_ORDERS!=='undefined'?WORK_ORDERS:[], typeof BODY_ORDERS!=='undefined'?BODY_ORDERS:[]].forEach(function(list){
+    list.forEach(function(d){
+      if (d.custId !== c.id) return;
+      d.custName = nm; d.phone = c.phone||d.phone||''; d.custClass = c.custClass||d.custClass;
+      if (c.custClass==='juristic') d.contact = c.contact||'';
+      woIds[d.id] = true; n++;
+    });
+  });
+  if (typeof CLAIMS !== 'undefined') CLAIMS.forEach(function(cl){
+    if (woIds[cl.origWoId] || woIds[cl.newWoId]) cl.custName = nm;
+  });
+  try { scheduleAutoSave(); } catch(e){}
+  return n;
 }
 function custColor(id){ var n=parseInt(id.replace('C',''))-1; return AV_COLORS[n%AV_COLORS.length]; }
 
@@ -3518,7 +3575,7 @@ function renderCustGrid(list, gridId, canEdit) {
     var card = document.createElement('div');
     card.className = 'cust-card';
     card.innerHTML = '<div class="cust-av" style="background:'+col+'">'+av+'</div>'
-      +'<div class="cust-name">'+custDisplayName(c)+'</div>'
+      +'<div class="cust-name"'+(c.name?'':' style="color:var(--text3);font-weight:500"')+'>'+custDisplayName(c)+'</div>'
       +(c.company?'<div style="font-size:11.5px;color:var(--text3);margin:-2px 0 3px">'+c.company+'</div>':'')
       +'<div class="cust-phone">'+c.phone+'</div>'
       +'<div style="font-size:12px;color:var(--text3);margin-top:6px">'+sub2+'</div>';
@@ -3537,6 +3594,7 @@ function switchCustTab(tab, el) {
 
 function filterCustomers(q) {
   q = (q||'').trim();
+  _custLastQ = q;   /* save so nav-back can restore */
   var canEdit = ['owner','manager'].includes(currentUser?currentUser.role:'');
   var ql = q.toLowerCase().replace(/\s/g,'');
 
@@ -3855,7 +3913,7 @@ function saveCust() {
   } else {
     var prefix = document.getElementById('nc-prefix').value || 'คุณ';
     var name   = (document.getElementById('nc-name').value||'').trim();
-    if (!name||!phone) { showToast('❌ กรุณากรอกชื่อและเบอร์'); return; }
+    if (!phone) { showToast('❌ กรุณากรอกเบอร์โทร'); return; }
     data = {
       custClass:'person', type, prefix, name, phone,
       company:(document.getElementById('nc-company').value||'').trim(),
@@ -3896,13 +3954,14 @@ function saveCust() {
       ex.name=data.name; ex.company=data.company; ex.contact=data.contact||'';
       ex.taxid=data.taxid; ex.phone=data.phone; ex.address=data.address;
       if (data.type==='repair') ex.cars=data.cars;
+      var _synced = syncCustToDocs(ex);
     }
     editingCustId = null;
     document.getElementById('m-cust-title').textContent = '👤 เพิ่มลูกค้าใหม่';
     closeM('m-customer');
     renderAllCustomers(canEdit);
     if (document.getElementById('view-customer-detail').classList.contains('active')) openCustDetail(ex.id);
-    showToast('✅ บันทึกข้อมูล '+custDisplayName(data)+' แล้ว');
+    showToast('✅ บันทึกข้อมูล '+custDisplayName(data)+' แล้ว'+(_synced?' | อัปเดต '+_synced+' ใบงาน':''));
   } else {
     var newId = 'C'+String(nextCustId++).padStart(3,'0');
     data.id = newId;
@@ -4444,7 +4503,7 @@ function showWOPopup(woId) {
     +'<span style="color:var(--text3);font-size:12px;font-weight:600">ทะเบียน</span><span class="car-plate" style="font-size:15px">'+w.plate+'</span>'
     +'<span style="color:var(--text3);font-size:12px;font-weight:600">รถ</span><span>'+(((w.brand||'')+' '+(w.model||'')).trim()||'—')+' ปี '+(w.year||'—')+'</span>'
     +(w.vin&&w.vin!=='—'?'<span style="color:var(--text3);font-size:12px;font-weight:600">VIN</span><span class="mono" style="font-size:11.5px">'+w.vin+'</span>':'')
-    +'<span style="color:var(--text3);font-size:12px;font-weight:600">ลูกค้า</span><span style="font-weight:600">'+w.custName+'</span>'
+    +'<span style="color:var(--text3);font-size:12px;font-weight:600">ลูกค้า</span><span style="font-weight:600">'+woCustLabel(w)+'</span>'
     +(w.contact?'<span style="color:var(--text3);font-size:12px;font-weight:600">ผู้ติดต่อ</span><span>'+w.contact+'</span>':'')
     +'<span style="color:var(--text3);font-size:12px;font-weight:600">โทร</span><span class="mono">'+(w.phone||'—')+'</span>'
     +'<span style="color:var(--text3);font-size:12px;font-weight:600">วันรับ</span><span>'+w.date+'</span>'
@@ -4488,7 +4547,7 @@ function openWODetail(woId) {
   var grand = pt + lt;
 
   document.getElementById('wo-det-title').textContent = w.id + ' — ' + w.plate;
-  document.getElementById('wo-det-sub').textContent   = w.brand+' '+w.model+' '+w.year+' | '+w.custName;
+  document.getElementById('wo-det-sub').textContent   = w.brand+' '+w.model+' '+w.year+' | '+woCustLabel(w);
   document.getElementById('wo-det-badge').innerHTML   = '<span class="badge '+sc+'" style="font-size:13px;padding:4px 14px">'+w.status+'</span>';
 
   var pRows = (w.parts||[]).map(function(p,i){
@@ -4525,7 +4584,7 @@ function openWODetail(woId) {
     +' <button class="btn btn-outline btn-xs" onclick="cancelWOMileageEdit(\''+woId+'\')">✕</button>'
     +'</span>'
     +'</span>'
-    +'<span style="color:var(--text3);font-size:12px;font-weight:600">ลูกค้า</span><span style="font-weight:600">'+w.custName+'</span>'
+    +'<span style="color:var(--text3);font-size:12px;font-weight:600">ลูกค้า</span><span style="font-weight:600">'+woCustLabel(w)+'</span>'
     +(w.contact?'<span style="color:var(--text3);font-size:12px;font-weight:600">ผู้ติดต่อ</span><span>'+w.contact+'</span>':'')
     +'<span style="color:var(--text3);font-size:12px;font-weight:600">โทร</span><span class="mono">'+(w.phone||'—')+'</span>'
     +'<span style="color:var(--text3);font-size:12px;font-weight:600">วันรับ</span><span>'+w.date+'</span>'
@@ -4654,6 +4713,7 @@ function lookupPlate(plate) {
   var found = exactMatch ? matches[exactIdx].car : null;
   var foundCust = exactMatch ? matches[exactIdx].cust : null;
 
+  _woFoundCustId = (found && foundCust) ? foundCust.id : null;
   if (found && foundCust) {
     var isJurFound = foundCust.custClass === 'juristic';
     document.querySelectorAll('input[name="wo-cust-class"]').forEach(function(r){ r.checked=r.value===(isJurFound?'juristic':'person'); });
@@ -4755,7 +4815,9 @@ function lookupPlate(plate) {
   }
 }
 
+var _woFoundCustId = null;
 function resetWOForm() {
+  _woFoundCustId = null;
   // text/textarea fields
   ['wo-plate','wo-cust-name','wo-company','wo-biz-name','wo-contact-name','wo-taxid',
    'wo-cust-phone','wo-vin','wo-year','wo-color','wo-mileage','wo-desc','wo-note',
@@ -4806,12 +4868,12 @@ function saveWO() {
   var custName, woPrefix='', woCompany='', woContact='', woTaxid='', woBizType='';
   if (woClass === 'juristic') {
     woBizType = ((document.getElementById('wo-biz-type')||{}).value||'บริษัท');
-    custName  = (document.getElementById('wo-biz-name').value||'').trim() || 'ลูกค้าใหม่';
+    custName  = (document.getElementById('wo-biz-name').value||'').trim();
     woContact = ((document.getElementById('wo-contact-name')||{}).value||'').trim();
     woTaxid   = ((document.getElementById('wo-taxid')||{}).value||'').trim();
   } else {
     woPrefix  = ((document.getElementById('wo-prefix')||{}).value||'คุณ');
-    custName  = (document.getElementById('wo-cust-name').value||'').trim() || 'ลูกค้าใหม่';
+    custName  = (document.getElementById('wo-cust-name').value||'').trim();
     woCompany = ((document.getElementById('wo-company')||{}).value||'').trim();
   }
   var phone = (document.getElementById('wo-cust-phone').value||'').trim();
@@ -4839,7 +4901,7 @@ function saveWO() {
     id:_woId, date:today, doneDate:'',
     plate, vin, brand, model, year, engine,
     mileage:(document.getElementById('wo-mileage').value||'').trim(),
-    custName: woClass==='juristic'
+    custName: !custName ? '' : woClass==='juristic'
       ? (woBizType==='บริษัท' ? 'บริษัท '+custName+' จำกัด' : woBizType==='ห้างหุ้นส่วน' ? 'ห้างหุ้นส่วนจำกัด '+custName : woBizType+' '+custName)
       : (woPrefix?woPrefix+' ':'')+custName,
     custClass: woClass,
@@ -4849,6 +4911,8 @@ function saveWO() {
     jobType: jobTypeVal,
     status:'ยังไม่ได้เริ่มซ่อม', parts:[], labor:[], mechanics:[]
   };
+  /* ผูกรหัสลูกค้า: ลูกค้าเดิมที่เลือกจากทะเบียน → หรือหาจากทะเบียน/เบอร์ */
+  wo.custId = _woFoundCustId || findCustIdFor(wo) || '';
   WORK_ORDERS.unshift(wo);
   /* Increment WO counter in settings (จากเลขที่ใช้จริง กันเลขค้าง) */
   if (typeof SHOP_SETTINGS !== 'undefined') { SHOP_SETTINGS.woNext = _woN + 1; }
@@ -4877,6 +4941,7 @@ function saveWO() {
       };
     }
     CUSTOMERS.push(newCust);
+    wo.custId = newCustId;
     var _canEdit = ['owner','manager'].includes(currentUser ? currentUser.role : '');
     renderAllCustomers(_canEdit);
     showToast('✅ เปิดงาน '+wo.id+' — '+plate+' | บันทึกลูกค้าใหม่แล้ว');
@@ -7071,7 +7136,7 @@ function openWODetail(woId) {
   var isDone = w.status==='เสร็จแล้ว';
 
   document.getElementById('wo-det-title').textContent = w.id+' — '+w.plate;
-  document.getElementById('wo-det-sub').textContent   = w.brand+' '+w.model+' '+w.year+' | '+w.custName;
+  document.getElementById('wo-det-sub').textContent   = w.brand+' '+w.model+' '+w.year+' | '+woCustLabel(w);
   document.getElementById('wo-det-badge').innerHTML   = '<span class="badge '+sc+'" style="font-size:13px;padding:4px 14px">'+w.status+'</span>';
 
   // Buttons
@@ -7230,7 +7295,7 @@ function renderWODetailContent(woId, returnMode) {
     +' <button class="btn btn-outline btn-xs" onclick="cancelWOMileageEdit(\''+woId+'\')">✕</button>'
     +'</span>'
     +'</span>'
-    +'<span style="color:var(--text3);font-size:12px;font-weight:600">ลูกค้า</span><span style="font-weight:600">'+w.custName+'</span>'
+    +'<span style="color:var(--text3);font-size:12px;font-weight:600">ลูกค้า</span><span style="font-weight:600">'+woCustLabel(w)+'</span>'
     +(w.contact?'<span style="color:var(--text3);font-size:12px;font-weight:600">ผู้ติดต่อ</span><span>'+w.contact+'</span>':'')
     +'<span style="color:var(--text3);font-size:12px;font-weight:600">โทร</span><span class="mono">'+(w.phone||'—')+'</span>'
     +(canEdit||(w.mechanics&&w.mechanics.length)?'<span style="color:var(--text3);font-size:12px;font-weight:600;grid-column:1/-1;margin-top:4px;display:flex;align-items:center;gap:6px">ช่างผู้ซ่อม'+(canEdit?'<button style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:12px;padding:0 2px;line-height:1" title="แก้ไขช่างผู้รับงาน" onclick="openMechEdit(\''+woId+'\')">✏️</button>':'')+'</span>':'')
@@ -8008,7 +8073,7 @@ function buildBillHTML(woId, useVAT, docType, opts) {
     + (function(){
       /* Look up by name first (reliable), phone only as fallback for address/taxid */
       var custRec = typeof CUSTOMERS!=='undefined'
-        ? (CUSTOMERS.find(function(c){ return (c.custClass==='juristic'?c.name:(c.prefix||'')+c.name)===(w.custName||''); })
+        ? ((w.custId && CUSTOMERS.find(function(c){ return c.id===w.custId; })) || CUSTOMERS.find(function(c){ return c.name && (c.custClass==='juristic'?c.name:(c.prefix||'')+c.name)===(w.custName||''); })
            || (w.phone ? CUSTOMERS.find(function(c){ return c.phone && c.phone===w.phone; }) : null))
         : null;
       var custTaxId  = (custRec&&custRec.taxid)  || w.taxId  || '';
@@ -8017,6 +8082,7 @@ function buildBillHTML(woId, useVAT, docType, opts) {
       var custFullName = w.custName || (custRec
         ? (typeof custDisplayName==='function' ? custDisplayName(custRec) : (custRec.custClass==='juristic' ? (custRec.prefix==='บริษัท'?'บริษัท '+custRec.name+' จำกัด':custRec.prefix==='ห้างหุ้นส่วน'?'ห้างหุ้นส่วนจำกัด '+custRec.name:(custRec.prefix||'บริษัท')+' '+custRec.name) : (custRec.prefix?custRec.prefix+' ':'')+custRec.name))
         : '—');
+      if (!w.custName || custFullName==='(ไม่ระบุชื่อ)') custFullName = 'ลูกค้าเงินสด';
 
       if (useVAT) {
         /* ── ใบกำกับภาษี: แสดงข้อมูลผู้ซื้อตามกฎหมาย ── */
@@ -8096,7 +8162,7 @@ function buildVatInvoiceHTML(w, o) {
 
   /* ดึงข้อมูลลูกค้า: หาโดยชื่อก่อน, เบอร์เป็น fallback (เหมือน buildBillHTML) */
   var custRec = (typeof CUSTOMERS!=='undefined')
-    ? (CUSTOMERS.find(function(c){ return (c.custClass==='juristic'?c.name:(c.prefix||'')+c.name)===(w.custName||''); })
+    ? ((w.custId && CUSTOMERS.find(function(c){ return c.id===w.custId; })) || CUSTOMERS.find(function(c){ return c.name && (c.custClass==='juristic'?c.name:(c.prefix||'')+c.name)===(w.custName||''); })
        || (w.phone ? CUSTOMERS.find(function(c){ return c.phone && c.phone===w.phone; }) : null))
     : null;
   var custTaxId  = (custRec&&custRec.taxid)   || w.taxId   || '';
@@ -8104,6 +8170,7 @@ function buildVatInvoiceHTML(w, o) {
   var custName   = w.custName || (custRec
     ? (typeof custDisplayName==='function' ? custDisplayName(custRec) : custRec.name)
     : '');
+  if (!w.custName || custName==='(ไม่ระบุชื่อ)') custName = 'ลูกค้าเงินสด';
 
   /* วันที่แบบสั้น dd/mm/yy (พ.ศ. 2 หลัก) */
   var _d = new Date();
@@ -8507,7 +8574,7 @@ function printReceipt() {
       RECEIPTS.unshift({
         id:          rcId,
         plate:       wo.plate || '—',
-        custName:    (wo.custName||''),
+        custName:    woCustPrint(wo),
         desc:        wo.desc || wo.jobType || '—',
         woId:        woId,
         date:        today,
@@ -8694,7 +8761,7 @@ function printInvoice(invId) {
     +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;font-size:13.5px">'
     +'<div><b>ทะเบียน:</b> '+inv.plate+'</div>'
     +'<div><b>เลขงาน:</b> '+inv.woId+'</div>'
-    +(wo?'<div><b>ยี่ห้อ/รุ่น:</b> '+wo.brand+' '+wo.model+'</div><div><b>ลูกค้า:</b> '+(wo.custName||'—')+'</div>':'')
+    +(wo?'<div><b>ยี่ห้อ/รุ่น:</b> '+wo.brand+' '+wo.model+'</div><div><b>ลูกค้า:</b> '+woCustPrint(wo)+'</div>':'')
     +'</div>'
     +'<table style="margin-bottom:14px"><thead><tr style="background:#f0f0f0">'
     +'<th style="padding:8px 10px;border:1px solid #ddd;text-align:center;width:36px">#</th>'
@@ -10664,7 +10731,15 @@ var _psSearch = '';
 
 function openPartsSale() {
   _psItems = []; _psVAT = false;
+  /* remember current date before reset so user-edited date survives re-open */
+  var _prevSaleDate = (document.getElementById('ps-sale-date')||{}).value||'';
+  var _prevBillDate = (document.getElementById('ps-bill-date')||{}).value||'';
   resetPartsSaleModal();
+  /* restore dates: keep previous date if it was set (user may re-open to add more items same day) */
+  var sd=document.getElementById('ps-sale-date');
+  if(sd && _prevSaleDate) sd.value=_prevSaleDate;
+  var bd=document.getElementById('ps-bill-date');
+  if(bd && _prevBillDate) bd.value=_prevBillDate;
   var srch = document.getElementById('ps-search'); if(srch) srch.value='';
   var srchRes = document.getElementById('ps-search-results'); if(srchRes) srchRes.style.display='none';
   renderPSItems(); updatePSSummary();
@@ -10718,7 +10793,8 @@ function searchPSItem(q) {
       +'</div>';
     row.addEventListener('mouseover',function(){ this.style.background='var(--accent-light)'; });
     row.addEventListener('mouseout', function(){ this.style.background=''; });
-    row.addEventListener('click', (function(stock){ return function(){
+    row.addEventListener('mousedown', (function(stock){ return function(e){
+      e.preventDefault();
       addPSItem(stock);
       document.getElementById('ps-search').value='';
       document.getElementById('ps-search-results').style.display='none';
@@ -11509,6 +11585,7 @@ function searchCarHist(elId, plate, q) {
 var CUST_PAGE     = 20;
 var _custOffset   = { repair:0, parts:0 };
 var _custFiltered = { repair:[], parts:[] };
+var _custLastQ    = '';   /* remember last search query to restore after Back */
 
 function showAllCust(type) {
   var canEdit = ['owner','manager'].includes(currentUser?currentUser.role:'');
@@ -11545,7 +11622,7 @@ function appendCustPage(type, canEdit) {
     var card = document.createElement('div');
     card.className = 'cust-card';
     card.innerHTML = '<div class="cust-av" style="background:'+col+'">'+av+'</div>'
-      +'<div class="cust-name">'+custDisplayName(c)+'</div>'
+      +'<div class="cust-name"'+(c.name?'':' style="color:var(--text3);font-weight:500"')+'>'+custDisplayName(c)+'</div>'
       +(c.company?'<div style="font-size:11.5px;color:var(--text3);margin:-2px 0 3px">'+c.company+'</div>':'')
       +'<div class="cust-phone">'+c.phone+'</div>'
       +'<div style="font-size:12px;color:var(--text3);margin-top:6px">'+sub2+'</div>';
@@ -13055,8 +13132,10 @@ function searchPSCustomer(q) {
   q = (q||'').trim().toLowerCase();
   if (q.length < 1) { res.style.display='none'; return; }
   /* Search parts customers + repair customers */
+  var qn = q.replace(/\s/g,'');
   var matches = CUSTOMERS.filter(function(c){
-    return (c.name||'').toLowerCase().includes(q) || (c.phone||'').includes(q);
+    return (c.name||'').toLowerCase().includes(q) || (c.phone||'').includes(q)
+      || (c.cars||[]).some(function(car){ return (car.plate||'').replace(/\s/g,'').toLowerCase().includes(qn); });
   }).slice(0,8);
   if (!matches.length) { res.style.display='none'; return; }
   res.style.display='';
@@ -13064,11 +13143,14 @@ function searchPSCustomer(q) {
   matches.forEach(function(c){
     var div = document.createElement('div');
     div.style.cssText='display:flex;align-items:center;gap:10px;padding:8px 14px;cursor:pointer;border-bottom:1px solid var(--border)';
-    div.innerHTML='<div style="flex:1"><div style="font-weight:600;font-size:13px">'+c.name+'</div>'
-      +'<div style="font-size:11.5px;color:var(--text3)">'+c.phone+'</div></div>';
+    var _plates = (c.cars||[]).map(function(car){ return car.plate; }).filter(Boolean).join(', ');
+    div.innerHTML='<div style="flex:1"><div style="font-weight:600;font-size:13px">'
+      +(c.name ? custDisplayName(c) : '<span style="color:var(--text3);font-weight:500">(ไม่ระบุชื่อ)</span>')+'</div>'
+      +'<div style="font-size:11.5px;color:var(--text3)">'+(_plates?'🚗 '+_plates+' · ':'')+'📞 '+(c.phone||'—')+'</div></div>';
     div.addEventListener('mouseover',function(){ this.style.background='var(--accent-light)'; });
     div.addEventListener('mouseout', function(){ this.style.background=''; });
-    div.addEventListener('click', (function(cust){ return function(){
+    div.addEventListener('mousedown', (function(cust){ return function(e){
+      e.preventDefault();
       /* Set customer class */
       var cls = cust.custClass || 'person';
       document.querySelectorAll('input[name="ps-cust-class"]').forEach(function(r){ r.checked=r.value===cls; });
@@ -13078,7 +13160,7 @@ function searchPSCustomer(q) {
         if (pfx && cust.prefix) pfx.value = cust.prefix;
         var nameEl = document.getElementById('ps-cust-name');
         /* Strip prefix from cust.name if it starts with it */
-        var rawName = cust.name;
+        var rawName = cust.name||'';
         if (cust.prefix && rawName.startsWith(cust.prefix+' ')) rawName = rawName.slice(cust.prefix.length+1);
         if (nameEl) nameEl.value = rawName;
       } else {
@@ -13087,7 +13169,7 @@ function searchPSCustomer(q) {
         if (bt && bizPfx) bt.value = bizPfx;
         var bn = document.getElementById('ps-biz-name');
         /* Strip prefix from name if present */
-        var rawBiz = cust.name;
+        var rawBiz = cust.name||'';
         if (bizPfx && rawBiz.startsWith(bizPfx+' ')) rawBiz = rawBiz.slice(bizPfx.length+1);
         if (bn) bn.value = rawBiz;
         var ti = document.getElementById('ps-taxid');
@@ -13097,7 +13179,7 @@ function searchPSCustomer(q) {
       }
       var ph = document.getElementById('ps-cust-phone');
       if (ph) ph.value = cust.phone||'';
-      document.getElementById('ps-cust-search').value = cust.name;
+      document.getElementById('ps-cust-search').value = cust.name || cust.phone || '';
       res.style.display='none';
     }; })(c));
     res.appendChild(div);
@@ -13114,9 +13196,9 @@ function resetPartsSaleModal() {
   var bt=document.getElementById('ps-biz-type'); if(bt) bt.selectedIndex=0;
   document.querySelectorAll('input[name="ps-cust-class"]').forEach(function(r){ r.checked=r.value==='person'; });
   switchPSCustClass('person');
-  /* Reset sale date to today */
+  /* Set sale date to today only if empty (allows user to keep a custom date) */
   var sd=document.getElementById('ps-sale-date');
-  if(sd) sd.value=new Date().toISOString().slice(0,10);
+  if(sd && !sd.value) sd.value=new Date().toISOString().slice(0,10);
   /* Reset payment to cash */
   document.querySelectorAll('input[name="ps-pay-type"]').forEach(function(r){ r.checked=r.value==='cash'; });
   togglePSCredit('cash');
@@ -13845,7 +13927,7 @@ function printCarReceiptFromWO(woId) {
   var shopTel2 = SHOP_SETTINGS.phone2  || '';
   var logoUrl  = SHOP_SETTINGS.logoUrl || '';
   var today    = new Date().toLocaleDateString('th-TH',{day:'numeric',month:'long',year:'numeric'});
-  var custName = wo.custName || '—';
+  var custName = woCustPrint(wo);
   var phone    = wo.custPhone || wo.phone || '—';
   var plate    = wo.plate || '—';
   var brand    = wo.brand || '';
@@ -14152,6 +14234,8 @@ function loadFromLocalStorage() {
     bo.forEach(function(b){ var n=parseInt((b.id||'').replace(/\D/g,'')); if(n>_maxBR) _maxBR=n; });
     if(_maxBR >= nextBRId) nextBRId = _maxBR + 1;
   }
+  /* ผูก WO เก่ากับรหัสลูกค้า (ครั้งเดียว — ใบที่มี custId แล้วข้าม) */
+  try { if (linkDocsToCustIds()) { localStorage.setItem('gm_workorders', JSON.stringify(WORK_ORDERS)); localStorage.setItem('gm_bodyorders', JSON.stringify(BODY_ORDERS)); } } catch(e){}
 }
 
 function scheduleAutoSave() {
@@ -14410,7 +14494,7 @@ function saveClaimFromWO(woId) {
   var newWO = {
     id:newWoId, date:today, doneDate:'',
     plate:w.plate, vin:w.vin||'', brand:w.brand||'', model:w.model||'', year:w.year||'',
-    engine:w.engine||'เบนซิน', mileage:'', custName:w.custName, custClass:w.custClass||'person',
+    engine:w.engine||'เบนซิน', mileage:'', custName:w.custName, custId:w.custId||'', custClass:w.custClass||'person',
     phone:w.phone||'', contact:w.contact||'',
     desc:'เคลมอะไหล่ (อ้างอิง '+woId+')\n'+reason,
     note:'Claim: '+clmId,
@@ -15161,6 +15245,7 @@ function saveBRForm() {
         return plateMatch || nameMatch;
       });
       if (existCust) {
+        BODY_ORDERS[0].custId = existCust.id;
         /* เพิ่มรถใหม่ถ้ายังไม่มี plate นี้ */
         var hasPlate = (existCust.cars||[]).some(function(car){
           return car.plate && car.plate.replace(/\s/g,'').toLowerCase() === vals.plate.replace(/\s/g,'').toLowerCase();
@@ -15182,6 +15267,7 @@ function saveBRForm() {
           cars:vals.plate ? [{ plate:vals.plate, vin:'—', brand:vals.brand, model:vals.model, engine:'', year:vals.year||'—' }] : [],
           history:[], purchases:[]
         });
+        BODY_ORDERS[0].custId = newCustId;
         showToast('✅ เปิดใบงาน '+brId+' | บันทึกลูกค้าใหม่ '+vals.custName+' แล้ว');
       }
     } else {
