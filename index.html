@@ -1254,29 +1254,54 @@ tbody tr:hover td { background: #fafbfc; }
                   </div>
                 </div>
 
-                <!-- VAT Bill -->
+                <!-- VAT Bill: แยกเลข 2 ชุด -->
                 <div style="padding-top:14px;border-top:1px solid var(--border)">
-                  <div style="font-size:12px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">🧾 บิล VAT 7%</div>
+                  <div style="font-size:12px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px">🧾 ใบกำกับภาษี VAT 7% — แยกเลข 2 ชุด</div>
+                  <div style="font-size:12px;color:var(--text3);margin-bottom:6px">อะไหล่ (ทั้งงานซ่อมและขายหน้าร้าน) ใช้ชุด IVP · ค่าบริการ/ค่าแรง ใช้ชุด IVS · แต่ละชุดรันเลขต่อเนื่องของตัวเอง</div>
+                  <div style="font-size:12.5px;font-weight:700;color:var(--text2);margin:6px 0 6px">🔩 อะไหล่</div>
                   <div class="form-grid">
                     <div class="form-group">
                       <label class="lbl">Prefix</label>
-                      <input class="ctrl" id="set-vt-prefix" oninput="updateDocPreviews()" placeholder="VAT-2569-" style="font-family:var(--mono)" />
+                      <input class="ctrl" id="set-ivp-prefix" oninput="updateDocPreviews()" placeholder="IVP-2569-" style="font-family:var(--mono)" />
                     </div>
                     <div class="form-group">
                       <label class="lbl">เลขถัดไป</label>
-                      <input class="ctrl" id="set-vt-next" oninput="updateDocPreviews()" type="number" min="1" style="font-family:var(--mono)" />
+                      <input class="ctrl" id="set-ivp-next" oninput="updateDocPreviews()" type="number" min="1" style="font-family:var(--mono)" />
                     </div>
                     <div class="form-group">
                       <label class="lbl">จำนวนหลัก</label>
-                      <select class="ctrl" id="set-vt-pad" onchange="updateDocPreviews()">
+                      <select class="ctrl" id="set-ivp-pad" onchange="updateDocPreviews()">
                         <option value="3">3 หลัก (001)</option>
-                        <option value="4" selected>4 หลัก (0001)</option>
+                        <option value="4">4 หลัก (0001)</option>
                         <option value="5">5 หลัก (00001)</option>
                       </select>
                     </div>
                     <div class="form-group">
                       <label class="lbl">ตัวอย่าง</label>
-                      <div id="set-vt-preview" class="ctrl" style="background:var(--bg);font-family:var(--mono);color:var(--accent);font-weight:700"></div>
+                      <div id="set-ivp-preview" class="ctrl" style="background:var(--bg);font-family:var(--mono);color:var(--accent);font-weight:700"></div>
+                    </div>
+                  </div>
+                  <div style="font-size:12.5px;font-weight:700;color:var(--text2);margin:6px 0 6px">🛠 ค่าบริการ</div>
+                  <div class="form-grid">
+                    <div class="form-group">
+                      <label class="lbl">Prefix</label>
+                      <input class="ctrl" id="set-ivs-prefix" oninput="updateDocPreviews()" placeholder="IVS-2569-" style="font-family:var(--mono)" />
+                    </div>
+                    <div class="form-group">
+                      <label class="lbl">เลขถัดไป</label>
+                      <input class="ctrl" id="set-ivs-next" oninput="updateDocPreviews()" type="number" min="1" style="font-family:var(--mono)" />
+                    </div>
+                    <div class="form-group">
+                      <label class="lbl">จำนวนหลัก</label>
+                      <select class="ctrl" id="set-ivs-pad" onchange="updateDocPreviews()">
+                        <option value="3">3 หลัก (001)</option>
+                        <option value="4">4 หลัก (0001)</option>
+                        <option value="5">5 หลัก (00001)</option>
+                      </select>
+                    </div>
+                    <div class="form-group">
+                      <label class="lbl">ตัวอย่าง</label>
+                      <div id="set-ivs-preview" class="ctrl" style="background:var(--bg);font-family:var(--mono);color:var(--accent);font-weight:700"></div>
                     </div>
                   </div>
                 </div>
@@ -1294,28 +1319,8 @@ tbody tr:hover td { background: #fafbfc; }
                         <option value="00003">สาขาที่ 00003</option>
                       </select>
                     </div>
-                    <!-- Print mode -->
-                    <div class="form-group">
-                      <label class="lbl">โหมดพิมพ์ใบกำกับภาษี</label>
-                      <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px">
-                        <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;padding:10px 14px;border:1.5px solid var(--border);border-radius:8px" id="set-vat-mode-split-lbl">
-                          <input type="radio" name="set-vat-mode" value="split" style="accent-color:var(--accent);margin-top:2px;flex-shrink:0" onchange="updateVatModeUI()" />
-                          <div>
-                            <div style="font-weight:700;font-size:13.5px">แบบ B — แยก 6 ใบ <span style="font-size:11px;background:#dbeafe;color:#1d4ed8;padding:1px 7px;border-radius:8px;font-weight:700">แนะนำ</span></div>
-                            <div style="font-size:12px;color:var(--text2);margin-top:2px">ชุด ก (อะไหล่) + ชุด ข (ค่าแรง) — แต่ละชุดมีต้นฉบับ + สำเนา ×N</div>
-                            <div style="font-size:11.5px;color:var(--text3);margin-top:2px">ใช้เลขที่ต่างกัน 2 เลขต่อการพิมพ์ 1 ครั้ง</div>
-                          </div>
-                        </label>
-                        <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;padding:10px 14px;border:1.5px solid var(--border);border-radius:8px" id="set-vat-mode-single-lbl">
-                          <input type="radio" name="set-vat-mode" value="single" style="accent-color:var(--accent);margin-top:2px;flex-shrink:0" onchange="updateVatModeUI()" />
-                          <div>
-                            <div style="font-weight:700;font-size:13.5px">ใบเดียว — รวมอะไหล่ + ค่าแรง</div>
-                            <div style="font-size:12px;color:var(--text2);margin-top:2px">ออกเป็น 1 ใบกำกับภาษีรวม พร้อมสำเนา</div>
-                            <div style="font-size:11.5px;color:var(--text3);margin-top:2px">ใช้เลขที่เดียว 1 เลขต่อการพิมพ์ 1 ครั้ง</div>
-                          </div>
-                        </label>
-                      </div>
-                    </div>
+                    <!-- Print mode: แยกบิลอะไหล่/ค่าบริการเสมอ -->
+                    <div style="font-size:12.5px;color:var(--text2);padding:10px 14px;border:1.5px solid var(--border);border-radius:8px">📋 ใบกำกับภาษีออกแยกเสมอ: บิลอะไหล่ (IVP) และบิลค่าบริการ (IVS) คนละใบ คนละเลข</div>
                     <!-- Copy count -->
                     <div class="form-group" id="set-copy-count-row">
                       <label class="lbl">จำนวนสำเนาต่อชุด <span style="font-size:11.5px;color:var(--text3)">(ไม่รวมต้นฉบับ)</span></label>
@@ -2038,7 +2043,7 @@ tbody tr:hover td { background: #fafbfc; }
     <div style="font-size:12px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">รายการอะไหล่</div>
     <div style="position:relative;margin-bottom:10px">
       <input class="ctrl" id="po-search" placeholder="🔍 ค้นหาอะไหล่... ชื่อ, SKU, OEM, เบอร์อะไหล่" oninput="searchPOItem(this.value)" autocomplete="off" />
-      <div id="po-search-res" style="display:none;position:fixed;z-index:9999;background:#fff;border:1px solid var(--border);border-radius:8px;box-shadow:var(--shadow);max-height:240px;overflow-y:auto"></div>
+      <div id="po-search-res" style="display:none;position:fixed;z-index:9999;background:#fff;border:1px solid var(--border);border-radius:8px;box-shadow:var(--shadow);max-height:340px;overflow-y:auto"></div>
     </div>
     <div id="po-items-wrap"></div>
   </div>
@@ -5194,17 +5199,7 @@ function runStockSearch() {
     base = STOCK_DATA.filter(function(s){ return s.active !== false; });
   }
   if (!q) { _stockResults = base; _stockOffset = 0; renderStockTable(true); return; }
-  _stockResults = base.filter(function(s){
-    if (s.name.toLowerCase().includes(q)) return true;
-    if (s.sku.toLowerCase().includes(q))  return true;
-    if ((s.oemNumber||'').toLowerCase().includes(q)) return true;
-    if ((s.detail||'').toLowerCase().includes(q))    return true;
-    /* Search in source part numbers and brands */
-    if (s.sources && s.sources.some(function(sc){
-      return (sc.brand||'').toLowerCase().includes(q) || (sc.partNumber||'').toLowerCase().includes(q);
-    })) return true;
-    return false;
-  });
+  _stockResults = searchStockItems(q, {base:base, includeInactive:true});
   _stockOffset = 0;
   renderStockTable(true);
 }
@@ -6570,18 +6565,50 @@ function openAddPO() {
   openM('m-add-po');
 }
 
+/* ══ ค้นหาอะไหล่ (ใช้ร่วมกันทุกหน้า) ══
+   - ไม่สนตัวพิมพ์เล็ก/ใหญ่ และช่องว่าง, รวม ํา → ำ
+   - เรียง: ชื่อขึ้นต้นด้วยคำค้น → ชื่อมีคำค้น (ยิ่งอยู่ต้นชื่อยิ่งก่อน) → SKU/OEM/Part No. → ยี่ห้อ/รายละเอียด
+   - กลุ่มเดียวกันเรียงตามตัวอักษร (ตัวเลขเรียงถูก 5W ก่อน 10W)
+   opts.includeInactive = true เพื่อรวมสินค้าที่ปิดใช้งาน */
+function _normSearch(t) { return String(t||'').toLowerCase().replace(/ํา/g,'ำ').replace(/\s+/g,''); }
+function searchStockItems(q, opts) {
+  opts = opts || {};
+  var qn = _normSearch(q);
+  if (!qn) return [];
+  var list = opts.base || STOCK_DATA;
+  var scored = [];
+  list.forEach(function(s){
+    if (!opts.includeInactive && s.active === false) return;
+    var nm = _normSearch(s.name), rank = -1, pos = 0;
+    var ip = nm.indexOf(qn);
+    if (ip === 0) rank = 0;
+    else if (ip > 0) { rank = 1; pos = ip; }
+    else if (_normSearch(s.sku).indexOf(qn) >= 0 || _normSearch(s.oemNumber).indexOf(qn) >= 0
+          || (s.sources||[]).some(function(sc){ return _normSearch(sc.partNumber).indexOf(qn) >= 0; })) rank = 2;
+    else if ((s.sources||[]).some(function(sc){ return _normSearch(sc.brand).indexOf(qn) >= 0; })
+          || _normSearch(s.detail).indexOf(qn) >= 0) rank = 3;
+    if (rank >= 0) scored.push({s:s, r:rank, p:pos});
+  });
+  scored.sort(function(a,b){
+    if (a.r !== b.r) return a.r - b.r;
+    if (a.p !== b.p) return a.p - b.p;
+    return String(a.s.name||'').localeCompare(String(b.s.name||''), 'th', {numeric:true, sensitivity:'base'});
+  });
+  return scored.map(function(x){ return x.s; });
+}
+/* หัว dropdown บอกจำนวนที่เจอ */
+function stockSearchHeader(n) {
+  var h = document.createElement('div');
+  h.style.cssText = 'position:sticky;top:0;z-index:1;padding:5px 14px;font-size:11.5px;color:var(--text3);background:var(--surface2,#f8fafc);border-bottom:1px solid var(--border)';
+  h.textContent = 'พบ '+n+' รายการ';
+  return h;
+}
+
 function searchPOItem(q) {
   var res = document.getElementById('po-search-res'); if (!res) return;
   q = (q||'').trim().toLowerCase();
   if (q.length < 1) { res.style.display='none'; return; }
-  var matches = STOCK_DATA.filter(function(s){
-    if (s.active === false) return false;
-    return s.name.toLowerCase().includes(q) || s.sku.toLowerCase().includes(q)
-      || (s.oemNumber||'').toLowerCase().includes(q)
-      || (s.sources||[]).some(function(sc){
-          return (sc.partNumber||'').toLowerCase().includes(q)||(sc.brand||'').toLowerCase().includes(q);
-        });
-  }).slice(0,8);
+  var matches = searchStockItems(q);
   var inp = document.getElementById('po-search');
   if (inp) {
     var rect = inp.getBoundingClientRect();
@@ -6591,6 +6618,7 @@ function searchPOItem(q) {
     res.style.display = 'block';
   }
   res.innerHTML = '';
+  if (matches.length) res.appendChild(stockSearchHeader(matches.length));
   if (matches.length) {
     matches.forEach(function(s) {
       var totalQ = stockQty(s);
@@ -6838,6 +6866,22 @@ var _returnMode   = false;
 var _wdStock      = null;
 var _quoteVAT     = false;
 var _receiptVAT   = false;
+/* เลขใบกำกับภาษีถัดไป (กินเลขทันที): kind = 'parts' → IVP, 'labor' → IVS */
+function nextVatNo(kind) {
+  var k = kind==='labor' ? 'ivs' : 'ivp';
+  var pfx = SHOP_SETTINGS[k+'Prefix'] || (k==='ivs' ? 'IVS-2569-' : 'IVP-2569-');
+  var n   = parseInt(SHOP_SETTINGS[k+'Next']) || 1;
+  var pad = parseInt(SHOP_SETTINGS[k+'Pad'])  || 3;
+  SHOP_SETTINGS[k+'Next'] = n + 1;
+  try { scheduleAutoSave(); } catch(e){}
+  return pfx + String(n).padStart(pad,'0');
+}
+/* เลขถัดไปสำหรับ preview (ไม่กินเลข) */
+function peekVatNo(kind) {
+  var k = kind==='labor' ? 'ivs' : 'ivp';
+  var pfx = SHOP_SETTINGS[k+'Prefix'] || (k==='ivs' ? 'IVS-2569-' : 'IVP-2569-');
+  return pfx + String(parseInt(SHOP_SETTINGS[k+'Next'])||1).padStart(parseInt(SHOP_SETTINGS[k+'Pad'])||3,'0');
+}
 var _vatDocNoP    = '';   /* last printed VAT doc# for parts set */
 var _vatDocNoL    = '';   /* last printed VAT doc# for labor set */
 
@@ -7760,27 +7804,19 @@ function searchWithdrawStock(q) {
   q = (q||'').trim().toLowerCase();
   var res = document.getElementById('wd-search-results'); if (!res) return;
   if (q.length < 1) { res.style.display='none'; res.innerHTML=''; return; }
-  var matches = STOCK_DATA.filter(function(s){
-    if (s.active === false) return false;
-    return s.name.toLowerCase().includes(q)
-      || s.sku.toLowerCase().includes(q)
-      || (s.oemNumber||'').toLowerCase().includes(q)
-      || (s.sources||[]).some(function(sc){
-          return (sc.partNumber||'').toLowerCase().includes(q)
-              || (sc.brand||'').toLowerCase().includes(q);
-        });
-  }).slice(0,8);
+  var matches = searchStockItems(q);
   /* Position fixed like searchPSItem */
   var inp = document.getElementById('wd-search');
   if (inp) {
     var rect = inp.getBoundingClientRect();
     res.style.cssText = 'position:fixed;z-index:9999;background:#fff;border:1px solid var(--border);'
-      +'border-radius:8px;box-shadow:var(--shadow);width:'+inp.offsetWidth+'px;max-height:240px;overflow-y:auto;'
+      +'border-radius:8px;box-shadow:var(--shadow);width:'+inp.offsetWidth+'px;max-height:340px;overflow-y:auto;'
       +'top:'+(rect.bottom+4)+'px;left:'+rect.left+'px';
   }
   res.style.display = matches.length ? '' : 'none';
   if (!matches.length) { res.innerHTML='<div style="padding:10px;font-size:13px;color:var(--text3)">ไม่พบอะไหล่</div>'; return; }
   res.innerHTML = '';
+  if (matches.length) res.appendChild(stockSearchHeader(matches.length));
   matches.forEach(function(s) {
     var tq = stockQty(s);
     var isOut = tq <= 0;
@@ -8021,7 +8057,7 @@ function buildBillHTML(woId, useVAT, docType, opts) {
   var qtPad    = SHOP_SETTINGS.qtPad    || 3;
   var docNo    = opts.docNo || (isQuote
     ? qtPrefix + String(qtNext).padStart(qtPad,'0')
-    : (useVAT ? vtPrefix + String(vtNext).padStart(vtPad,'0') : rcPrefix + String(rcNext).padStart(rcPad,'0')));
+    : (useVAT ? peekVatNo(opts.setType==='labor' ? 'labor' : 'parts') : rcPrefix + String(rcNext).padStart(rcPad,'0')));
   var docTitle = isQuote ? 'ใบเสนอราคา' : (useVAT ? 'ใบกำกับภาษี' : 'ใบเสร็จรับเงิน');
   var docColor = isQuote ? '#ea580c' : (useVAT ? '#1d4ed8' : '#15803d');
   var logoUrl   = SHOP_SETTINGS.logoUrl    || '';
@@ -8469,10 +8505,26 @@ function showReceipt(woId) {
   setReceiptVATStyle(false);
   openM('m-wo-receipt');
 }
+/* VAT: สร้างบิลแยก อะไหล่ (IVP) + ค่าบริการ (IVS) — ใช้ทั้ง preview และพิมพ์ซ้ำ */
+function buildVatSplitHTML(woId, docNoP, docNoL, copies) {
+  var w = WORK_ORDERS.find(function(x){ return x.id===woId; }); if (!w) return '';
+  var hasParts = (w.parts||[]).some(function(p){ return !p.trial; });
+  var hasLabor = (w.labor||[]).length > 0;
+  copies = copies || [''];
+  var docs = [];
+  if (hasParts) copies.forEach(function(cl){ docs.push(buildBillHTML(woId, true, undefined, {setType:'parts', copyLabel:cl, docNo:docNoP||peekVatNo('parts')})); });
+  if (hasLabor) copies.forEach(function(cl){ docs.push(buildBillHTML(woId, true, undefined, {setType:'labor', copyLabel:cl, docNo:docNoL||peekVatNo('labor')})); });
+  return docs.map(function(d,i){ return '<div style="'+(i<docs.length-1?'page-break-after:always;margin-bottom:24px':'')+'">'+d+'</div>'; }).join('');
+}
 function setReceiptVAT(v) {
   _receiptVAT = v;
   var woId = document.getElementById('m-wo-receipt').dataset.woid;
-  document.getElementById('receipt-body').innerHTML = buildBillHTML(woId, v);
+  if (v) {
+    var _pr = RECEIPTS.find(function(r){ return r.woId===woId && r.type!=='ขายอะไหล่' && r.type!=='คืนสินค้า'; });
+    document.getElementById('receipt-body').innerHTML = buildVatSplitHTML(woId, _pr&&_pr.vatDocParts, _pr&&_pr.vatDocLabor);
+  } else {
+    document.getElementById('receipt-body').innerHTML = buildBillHTML(woId, false);
+  }
   setReceiptVATStyle(v);
 }
 function setReceiptVATStyle(v) {
@@ -8486,57 +8538,35 @@ function printReceipt() {
   var wo   = WORK_ORDERS.find(function(x){ return x.id===woId; });
   var content;
   if (_receiptVAT) {
-    var splitMode   = SHOP_SETTINGS.vatSplitMode  || 'split';
     var vatCopies   = ['ต้นฉบับ', 'สำเนา', 'สำหรับบัญชี'];  /* พิมพ์ 3 ชุดเสมอ */
-    var vtPfx       = SHOP_SETTINGS.vtPrefix || 'VAT-2569-';
-    var vtN         = SHOP_SETTINGS.vtNext   || 1;
-    var vtP         = SHOP_SETTINGS.vtPad    || 3;
+    /* ── แยกบิลเสมอ: อะไหล่ = ชุด IVP, ค่าบริการ = ชุด IVS (แต่ละชุดรันเลขของตัวเอง) ── */
+    var hasParts = (wo && (wo.parts||[]).some(function(p){ return !p.trial; }));
+    var hasLabor = (wo && (wo.labor||[]).length > 0);
+    /* พิมพ์ซ้ำ: ใช้เลขเดิม ไม่กินเลขใหม่ (ห้ามข้ามเลขใบกำกับภาษี) */
+    var _prevRc = RECEIPTS.find(function(r){ return r.woId===woId && r.type!=='ขายอะไหล่' && r.type!=='คืนสินค้า'; });
+    var docNoP = (_prevRc && _prevRc.vatDocParts) || '';
+    var docNoL = (_prevRc && _prevRc.vatDocLabor) || '';
+    if (hasParts && !docNoP) docNoP = nextVatNo('parts');
+    if (hasLabor && !docNoL) docNoL = nextVatNo('labor');
 
-    if (splitMode === 'split') {
-      /* ── แบบ B: 2 เลขต่างกัน, N+1 ใบต่อชุด ── */
-      var hasParts = (wo && (wo.parts||[]).length > 0);
-      var hasLabor = (wo && (wo.labor||[]).length > 0);
-      var docNoP = vtPfx + String(vtN).padStart(vtP,'0');
-      var docNoL = vtPfx + String(vtN + (hasParts?1:0)).padStart(vtP,'0');
-      /* consume: 2 if both sets exist, 1 if only one set */
-      SHOP_SETTINGS.vtNext = vtN + (hasParts?1:0) + (hasLabor?1:0);
-
-      var vatDocs = [];
-      if (hasParts) {
-        vatCopies.forEach(function(cl){
-          vatDocs.push(buildBillHTML(woId, true, undefined, {setType:'parts', copyLabel:cl, docNo:docNoP}));
-        });
-      }
-      if (hasLabor) {
-        vatCopies.forEach(function(cl){
-          vatDocs.push(buildBillHTML(woId, true, undefined, {setType:'labor', copyLabel:cl, docNo:docNoL}));
-        });
-      }
-      content = vatDocs.map(function(d, i){
-        return '<div style="'+(i<vatDocs.length-1?'page-break-after:always':'')+'">' + d + '</div>';
-      }).join('');
-
-      /* store both doc numbers for receipt record */
-      _vatDocNoP = hasParts ? docNoP : '';
-      _vatDocNoL = hasLabor ? docNoL : (hasParts ? docNoP : '');
-
-      var totalDocs = vatDocs.length;
-      var splitHint = (hasParts?'ชุด ก '+docNoP+' (อะไหล่) ':'')+(hasLabor?'ชุด ข '+docNoL+' (แรง)':'');
-      var printHint = totalDocs+' หน้า: '+splitHint;
-      content = '<div class="no-print" style="margin-bottom:12px;padding:10px 14px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;font-size:12.5px;color:#1e40af"><b>📋 '+printHint+'</b></div>' + content;
-
-    } else {
-      /* ── ใบเดียว: 1 เลข, 3 ชุด (ต้นฉบับ/สำเนา/สำหรับบัญชี) ── */
-      var docNo1 = vtPfx + String(vtN).padStart(vtP,'0');
-      SHOP_SETTINGS.vtNext = vtN + 1;
-      _vatDocNoP = docNo1; _vatDocNoL = '';
-      var singleDocs = vatCopies.map(function(cl){
-        return buildBillHTML(woId, true, undefined, {copyLabel:cl, docNo:docNo1});
+    var vatDocs = [];
+    if (hasParts) {
+      vatCopies.forEach(function(cl){
+        vatDocs.push(buildBillHTML(woId, true, undefined, {setType:'parts', copyLabel:cl, docNo:docNoP}));
       });
-      content = singleDocs.map(function(d, i){
-        return '<div style="'+(i<singleDocs.length-1?'page-break-after:always':'')+'">' + d + '</div>';
-      }).join('');
     }
+    if (hasLabor) {
+      vatCopies.forEach(function(cl){
+        vatDocs.push(buildBillHTML(woId, true, undefined, {setType:'labor', copyLabel:cl, docNo:docNoL}));
+      });
+    }
+    content = vatDocs.map(function(d, i){
+      return '<div style="'+(i<vatDocs.length-1?'page-break-after:always':'')+'">' + d + '</div>';
+    }).join('');
+    _vatDocNoP = hasParts ? docNoP : '';
+    _vatDocNoL = hasLabor ? docNoL : '';
+    var splitHint = (hasParts?'บิลอะไหล่ '+docNoP+'  ':'')+(hasLabor?'บิลค่าบริการ '+docNoL:'');
+    content = '<div class="no-print" style="margin-bottom:12px;padding:10px 14px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;font-size:12.5px;color:#1e40af"><b>📋 '+vatDocs.length+' หน้า: '+splitHint+'</b></div>' + content;
   } else {
     _vatDocNoP = ''; _vatDocNoL = '';
     content = buildBillHTML(woId, false);
@@ -8567,8 +8597,9 @@ function printReceipt() {
       var rcNext   = SHOP_SETTINGS.rcNext||1;
       var rcPad    = SHOP_SETTINGS.rcPad||3;
       /* For VAT split mode, use the parts doc# as the primary receipt ID */
-      var rcId = (_receiptVAT && _vatDocNoP) ? _vatDocNoP : (rcPrefix+String(rcNext).padStart(rcPad,'0'));
-      if (!(_receiptVAT && _vatDocNoP)) SHOP_SETTINGS.rcNext = rcNext+1;
+      var _vatMain = _vatDocNoP || _vatDocNoL;
+      var rcId = (_receiptVAT && _vatMain) ? _vatMain : (rcPrefix+String(rcNext).padStart(rcPad,'0'));
+      if (!(_receiptVAT && _vatMain)) SHOP_SETTINGS.rcNext = rcNext+1;
       var parts = today.split('/');
       var rcMonth = parts.length>=3 ? parts[1]+'/'+parts[2] : today.slice(3);
       RECEIPTS.unshift({
@@ -8587,8 +8618,8 @@ function printReceipt() {
         paid:        true
       });
       initReceipts();
-      var toastMsg = (_receiptVAT && _vatDocNoP)
-        ? '✅ บันทึก '+_vatDocNoP+(_vatDocNoL?' + '+_vatDocNoL:'')
+      var toastMsg = (_receiptVAT && (_vatDocNoP||_vatDocNoL))
+        ? '✅ บันทึก '+[_vatDocNoP,_vatDocNoL].filter(Boolean).join(' + ')
         : '✅ บันทึกใบเสร็จ '+rcId+' แล้ว';
       showToast(toastMsg);
     }
@@ -8983,7 +9014,9 @@ function reprintReceipt(rcId) {
   /* WO receipt */
   var w = WORK_ORDERS.find(function(x){ return x.id===r.woId; });
   if (w) {
-    var content = buildBillHTML(r.woId, r.vatType==='VAT 7%', 'receipt');
+    var content = (r.vatType==='VAT 7%' && (r.vatDocParts || r.vatDocLabor))
+      ? buildVatSplitHTML(r.woId, r.vatDocParts, r.vatDocLabor, ['ต้นฉบับ','สำเนา','สำหรับบัญชี'])
+      : buildBillHTML(r.woId, r.vatType==='VAT 7%', 'receipt', {docNo:r.id});
     var pw = window.open('','_blank','width=780,height=700');
     if (!pw) { showToast('⚠️ กรุณาอนุญาต popup'); return; }
     pw.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8">'
@@ -9019,7 +9052,9 @@ var SHOP_SETTINGS = {
   woPrefix:   'WO-',  woNext:143, woPad:4,
   qtPrefix:   'QT-2569-', qtNext:43, qtPad:3,
   rcPrefix:   'RC-2569-', rcNext:251, rcPad:3,
-  vtPrefix:   'VAT-2569-', vtNext:1, vtPad:3,
+  vtPrefix:   'VAT-2569-', vtNext:1, vtPad:3,   /* ชุดเก่า — ไม่ใช้แล้ว */
+  ivpPrefix:  'IVP-2569-', ivpNext:1, ivpPad:3,  /* VAT อะไหล่ */
+  ivsPrefix:  'IVS-2569-', ivsNext:1, ivsPad:3,  /* VAT ค่าบริการ */
   /* VAT Invoice settings */
   shopBranch:    'สำนักงานใหญ่',
   vatCopyCount:  2,
@@ -9078,7 +9113,8 @@ function loadSettingsForm() {
   setV('set-wo-prefix', s.woPrefix); setV('set-wo-next', s.woNext); setV('set-wo-pad', s.woPad);
   setV('set-qt-prefix', s.qtPrefix); setV('set-qt-next', s.qtNext); setV('set-qt-pad', s.qtPad);
   setV('set-rc-prefix', s.rcPrefix); setV('set-rc-next', s.rcNext); setV('set-rc-pad', s.rcPad);
-  setV('set-vt-prefix', s.vtPrefix); setV('set-vt-next', s.vtNext); setV('set-vt-pad', s.vtPad);
+  setV('set-ivp-prefix', s.ivpPrefix||'IVP-2569-'); setV('set-ivp-next', s.ivpNext||1); setV('set-ivp-pad', s.ivpPad||3);
+  setV('set-ivs-prefix', s.ivsPrefix||'IVS-2569-'); setV('set-ivs-next', s.ivsNext||1); setV('set-ivs-pad', s.ivsPad||3);
   /* VAT invoice settings */
   var branchEl = document.getElementById('set-shop-branch');
   if (branchEl) branchEl.value = s.shopBranch || 'สำนักงานใหญ่';
@@ -9329,7 +9365,8 @@ function saveSettings() {
   SHOP_SETTINGS.woPrefix   = getV('set-wo-prefix'); SHOP_SETTINGS.woNext=parseInt(getV('set-wo-next'))||1; SHOP_SETTINGS.woPad=parseInt(getV('set-wo-pad'))||3;
   SHOP_SETTINGS.qtPrefix   = getV('set-qt-prefix'); SHOP_SETTINGS.qtNext=parseInt(getV('set-qt-next'))||1; SHOP_SETTINGS.qtPad=parseInt(getV('set-qt-pad'))||3;
   SHOP_SETTINGS.rcPrefix   = getV('set-rc-prefix'); SHOP_SETTINGS.rcNext=parseInt(getV('set-rc-next'))||1; SHOP_SETTINGS.rcPad=parseInt(getV('set-rc-pad'))||3;
-  SHOP_SETTINGS.vtPrefix   = getV('set-vt-prefix')||'VAT-2569-'; SHOP_SETTINGS.vtNext=parseInt(getV('set-vt-next'))||1; SHOP_SETTINGS.vtPad=parseInt(getV('set-vt-pad'))||3;
+  SHOP_SETTINGS.ivpPrefix  = getV('set-ivp-prefix')||'IVP-2569-'; SHOP_SETTINGS.ivpNext=parseInt(getV('set-ivp-next'))||1; SHOP_SETTINGS.ivpPad=parseInt(getV('set-ivp-pad'))||3;
+  SHOP_SETTINGS.ivsPrefix  = getV('set-ivs-prefix')||'IVS-2569-'; SHOP_SETTINGS.ivsNext=parseInt(getV('set-ivs-next'))||1; SHOP_SETTINGS.ivsPad=parseInt(getV('set-ivs-pad'))||3;
   /* VAT invoice settings */
   var branchEl2 = document.getElementById('set-shop-branch');
   SHOP_SETTINGS.shopBranch   = branchEl2 ? branchEl2.value : 'สำนักงานใหญ่';
@@ -10240,7 +10277,7 @@ function addSRLine() {
     /* Search box */
     +'<div style="flex:1;min-width:0;position:relative">'
     +'<input class="ctrl" id="srl-search-'+idx+'" placeholder="🔍 ชื่อ, OEM, รหัสอะไหล่..." oninput="searchSRLine('+idx+',this.value)" autocomplete="off" style="font-size:13px" />'
-    +'<div id="srl-res-'+idx+'" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:200;background:#fff;border:1px solid var(--border);border-radius:8px;box-shadow:var(--shadow);max-height:180px;overflow-y:auto"></div>'
+    +'<div id="srl-res-'+idx+'" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:200;background:#fff;border:1px solid var(--border);border-radius:8px;box-shadow:var(--shadow);max-height:300px;overflow-y:auto"></div>'
     +'</div>'
     /* Brand — shown after stock selected */
     +'<div id="srl-brand-wrap-'+idx+'" style="display:none;flex-shrink:0;width:160px">'
@@ -10267,14 +10304,10 @@ function searchSRLine(idx, q) {
   var res = document.getElementById('srl-res-'+idx); if (!res) return;
   q = (q||'').trim().toLowerCase();
   if (q.length < 1) { res.style.display='none'; return; }
-  var matches = STOCK_DATA.filter(function(s){
-    if (s.active === false) return false;
-    return s.name.toLowerCase().includes(q) || s.sku.toLowerCase().includes(q)
-      || (s.oemNumber||'').toLowerCase().includes(q)
-      || (s.sources||[]).some(function(sc){ return (sc.partNumber||'').toLowerCase().includes(q)||(sc.brand||'').toLowerCase().includes(q); });
-  }).slice(0,8);
+  var matches = searchStockItems(q);
   res.style.display = '';
   res.innerHTML = '';
+  if (matches.length) res.appendChild(stockSearchHeader(matches.length));
   matches.forEach(function(s) {
     var tq = stockQty(s);
     var div = document.createElement('div');
@@ -10464,24 +10497,17 @@ function searchSRItem(q) {
   var res = document.getElementById('sr-item-results');
   if (!res) return;
   if (q.length < 1) { res.style.display='none'; return; }
-  var matches = STOCK_DATA.filter(function(s){
-    if (s.active === false) return false;
-    return s.name.toLowerCase().includes(q) || s.sku.toLowerCase().includes(q)
-      || (s.oemNumber||'').toLowerCase().includes(q)
-      || (s.sources||[]).some(function(sc){
-          return (sc.partNumber||'').toLowerCase().includes(q)
-              || (sc.brand||'').toLowerCase().includes(q);
-        });
-  }).slice(0,8);
+  var matches = searchStockItems(q);
   var inp = document.getElementById('sr-item-search');
   if (inp) {
     var rect = inp.getBoundingClientRect();
     res.style.cssText = 'position:fixed;z-index:9999;background:#fff;border:1px solid var(--border);'
-      +'border-radius:8px;box-shadow:var(--shadow);width:'+inp.offsetWidth+'px;max-height:240px;overflow-y:auto;'
+      +'border-radius:8px;box-shadow:var(--shadow);width:'+inp.offsetWidth+'px;max-height:340px;overflow-y:auto;'
       +'top:'+(rect.bottom+4)+'px;left:'+rect.left+'px';
   }
   res.style.display = '';
   res.innerHTML = '';
+  if (matches.length) res.appendChild(stockSearchHeader(matches.length));
   matches.forEach(function(s) {
     var tq = stockQty(s);
     var isLow = tq < s.minQty;
@@ -10752,15 +10778,7 @@ function searchPSItem(q) {
   var res = document.getElementById('ps-search-results');
   if (!res) return;
   if (q.length < 1) { res.style.display='none'; return; }
-  var matches = STOCK_DATA.filter(function(s){
-    return s.name.toLowerCase().includes(q)
-      || s.sku.toLowerCase().includes(q)
-      || (s.oemNumber||'').toLowerCase().includes(q)
-      || (s.sources||[]).some(function(sc){
-          return (sc.partNumber||'').toLowerCase().includes(q)
-              || (sc.brand||'').toLowerCase().includes(q);
-        });
-  }).slice(0,8);
+  var matches = searchStockItems(q);
   var inp = document.getElementById('ps-search');
   if (inp) {
     var rect = inp.getBoundingClientRect();
@@ -10768,7 +10786,7 @@ function searchPSItem(q) {
     var below = vh - rect.bottom - 12;   /* พื้นที่ใต้ช่องค้นหา */
     var above = rect.top - 12;            /* พื้นที่เหนือช่องค้นหา */
     var openUp = below < 180 && above > below;             /* ใต้แคบ → เปิดขึ้นบน */
-    var maxH   = Math.max(120, Math.min(300, openUp ? above : below));  /* จำกัดไม่ให้ทะลุขอบจอ */
+    var maxH   = Math.max(120, Math.min(380, openUp ? above : below));  /* จำกัดไม่ให้ทะลุขอบจอ */
     var css = 'position:fixed;z-index:9999;background:#fff;border:1px solid var(--border);'
       +'border-radius:8px;box-shadow:var(--shadow);width:'+inp.offsetWidth+'px;'
       +'max-height:'+maxH+'px;overflow-y:auto;left:'+rect.left+'px;';
@@ -10777,6 +10795,7 @@ function searchPSItem(q) {
   }
   res.style.display = matches.length ? '' : 'none';
   res.innerHTML = '';
+  if (matches.length) res.appendChild(stockSearchHeader(matches.length));
   matches.forEach(function(s) {
     var tq = stockQty(s);
     var isLow = tq < s.minQty;
@@ -11036,8 +11055,10 @@ function confirmPartsSale() {
   var rcPrefix = SHOP_SETTINGS.rcPrefix||'RC-2569-';
   var rcNext   = SHOP_SETTINGS.rcNext||300;
   var rcPad    = SHOP_SETTINGS.rcPad||3;
-  var rcId = rcPrefix+String(rcNext).padStart(rcPad,'0');
-  SHOP_SETTINGS.rcNext = rcNext+1;
+  /* VAT → เลขชุดอะไหล่ IVP, ธรรมดา → RC */
+  var rcId;
+  if (isVAT) { rcId = nextVatNo('parts'); }
+  else { rcId = rcPrefix+String(rcNext).padStart(rcPad,'0'); SHOP_SETTINGS.rcNext = rcNext+1; }
   var desc = itemsSnap.slice(0,2).map(function(it){return it.name;}).join(', ')
     +(itemsSnap.length>2?' และอีก '+(itemsSnap.length-2)+' รายการ':'');
   var todayParts = today.split('/');
@@ -11133,7 +11154,7 @@ function printPartsSaleReceipt() {
   var rcPrefix = SHOP_SETTINGS.rcPrefix||'RC-2569-';
   var rcNext   = SHOP_SETTINGS.rcNext||1;
   var rcPad    = SHOP_SETTINGS.rcPad||3;
-  var docNo    = rcPrefix+String(rcNext).padStart(rcPad,'0');
+  var docNo    = _psVAT ? peekVatNo('parts') : rcPrefix+String(rcNext).padStart(rcPad,'0');
 
   var rows = _psItems.map(function(it,i){
     var srcInfo = it.sources && it.srcIdx >= 0 && it.sources[it.srcIdx] ? it.sources[it.srcIdx].brand : '';
@@ -12672,7 +12693,8 @@ function updateDocPreviews() {
     {pre:'set-wo', id:'set-wo-preview'},
     {pre:'set-qt', id:'set-qt-preview'},
     {pre:'set-rc', id:'set-rc-preview'},
-    {pre:'set-vt', id:'set-vt-preview'}
+    {pre:'set-ivp', id:'set-ivp-preview'},
+    {pre:'set-ivs', id:'set-ivs-preview'}
   ];
   fields.forEach(function(f){
     var pre = document.getElementById(f.pre+'-prefix');
