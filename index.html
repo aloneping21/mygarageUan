@@ -7416,6 +7416,8 @@ function renderWODetailContent(woId, returnMode) {
       }
     }
   }
+  /* เซฟอัตโนมัติทุกครั้งที่ render/แก้ไข WO (เบิก/คืน/ค่าแรง/ไมล์) แบบ debounce — กันข้อมูลหายถ้าปิดแบบไม่ปกติ */
+  if (typeof scheduleAutoSave === 'function') scheduleAutoSave();
 }
 
 /* ── WO Desc inline edit ──────────────────────────────────── */
@@ -8618,6 +8620,7 @@ function printReceipt() {
         paid:        true
       });
       initReceipts();
+      if (typeof saveToLocalStorage === 'function') saveToLocalStorage();  /* เซฟใบเสร็จ+เลขรันทันที กันข้อมูลหาย */
       var toastMsg = (_receiptVAT && (_vatDocNoP||_vatDocNoL))
         ? '✅ บันทึก '+[_vatDocNoP,_vatDocNoL].filter(Boolean).join(' + ')
         : '✅ บันทึกใบเสร็จ '+rcId+' แล้ว';
