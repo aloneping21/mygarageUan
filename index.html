@@ -3794,7 +3794,7 @@ function confirmDelCar(custId, ci) {
   if (!c||!c.cars[ci]) return;
   var car = c.cars[ci];
   showConfirm('🗑 ลบรถยนต์', 'ต้องการลบรถ <b>'+car.brand+' '+car.model+'</b> ทะเบียน <b>'+car.plate+'</b>?',
-    function(){ c.cars.splice(ci,1); openCustDetail(custId); showToast('🗑 ลบรถแล้ว'); }
+    function(){ c.cars.splice(ci,1); if (typeof saveToLocalStorage === 'function') saveToLocalStorage(); openCustDetail(custId); showToast('🗑 ลบรถแล้ว'); }
   );
 }
 
@@ -3975,6 +3975,7 @@ function saveCust() {
     renderAllCustomers(canEdit);
     showToast('✅ เพิ่มลูกค้า '+custDisplayName(data)+' แล้ว');
   }
+  if (typeof saveToLocalStorage === 'function') saveToLocalStorage();  /* เซฟข้อมูลลูกค้าทันที กันหาย */
 }
 
 /* ── UI Helpers ───────────────────────────────────────────── */
