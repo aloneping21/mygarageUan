@@ -2557,7 +2557,30 @@ async function loadFromSupabase(){
   }));
   var sres = await sb.from('settings').select('data').eq('id','shop').maybeSingle();
   if(sres.data && sres.data.data && typeof SHOP_SETTINGS!=='undefined') Object.assign(SHOP_SETTINGS, sres.data.data);
+  syncIdCounters();
   buildDbSnapshot();
+}
+
+/* ตั้งตัวนับ id ให้สูงกว่า id สูงสุดในคลาวด์ — กันเลขซ้ำหลังโหลด (ลูกค้า/WO/ช่าง ฯลฯ เด้งกลับเป็นของเก่า) */
+function syncIdCounters(){
+  function maxNum(arr){ var m=0; (arr||[]).forEach(function(o){ var n=parseInt(String(o&&o.id||'').replace(/\D/g,''))||0; if(n>m) m=n; }); return m; }
+  /* ลูกค้า */
+  if(typeof nextCustId!=='undefined'){ var mc=maxNum(CUSTOMERS); if(mc>=nextCustId) nextCustId=mc+1; }
+  /* WO (รวมที่ยกเลิก) */
+  var mWO=maxNum(WORK_ORDERS);
+  if(typeof CANCELLED_WOS!=='undefined') mWO=Math.max(mWO, maxNum(CANCELLED_WOS));
+  if(typeof SHOP_SETTINGS!=='undefined' && mWO>=(SHOP_SETTINGS.woNext||0)) SHOP_SETTINGS.woNext=mWO+1;
+  if(typeof nextWOId!=='undefined' && mWO>=nextWOId) nextWOId=mWO+1;
+  /* ช่าง */
+  if(typeof nextMechId!=='undefined'){ var mM=maxNum(MECHANICS); if(mM>=nextMechId) nextMechId=mM+1; }
+  /* เคลม */
+  if(typeof nextClaimId!=='undefined' && typeof CLAIMS!=='undefined'){ var mCl=maxNum(CLAIMS); if(mCl>=nextClaimId) nextClaimId=mCl+1; }
+  /* งานตัวถัง/สี */
+  if(typeof nextBRId!=='undefined' && typeof BODY_ORDERS!=='undefined'){ var mB=maxNum(BODY_ORDERS); if(mB>=nextBRId) nextBRId=mB+1; }
+  /* ผู้จำหน่าย */
+  if(typeof nextSupId!=='undefined'){ var mS=maxNum(SUPPLIERS); if(mS>=nextSupId) nextSupId=mS+1; }
+  /* สต็อก */
+  if(typeof nextStockId!=='undefined'){ var mSt=maxNum(STOCK_DATA); if(mSt>=nextStockId) nextStockId=mSt+1; }
 }
 
 /* sync เฉพาะ record ที่เปลี่ยน (diff) ขึ้น Supabase */
