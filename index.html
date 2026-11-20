@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>UAN MOTOR VOLK — ระบบบริหารอู่ซ่อมรถ</title>
 <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
@@ -2496,6 +2497,7 @@ const ROLES = {
   owner:   { label:'เจ้าของ',    icon:'👑', cls:'role-owner',   color:'#92400e', bg:'linear-gradient(135deg,#f59e0b,#d97706)' },
   manager: { label:'ผู้จัดการ',  icon:'🧑‍💼', cls:'role-manager', color:'#5b21b6', bg:'linear-gradient(135deg,#7c3aed,#6d28d9)' },
   cashier: { label:'แคชเชียร์', icon:'💰', cls:'role-cashier', color:'#15803d', bg:'linear-gradient(135deg,#16a34a,#15803d)' },
+  clerk:   { label:'เสมียน',    icon:'🧾', cls:'role-cashier', color:'#15803d', bg:'linear-gradient(135deg,#16a34a,#15803d)' },
 };
 
 // สิทธิ์แต่ละ role: key = ชื่อหน้า, value = true/false
@@ -2505,6 +2507,7 @@ const PERMS = {
   owner:   { dashboard:true,  workorders:true,  'wo-detail':true, customers:true,  'customer-detail':true, stock:true, 'stock-detail':true, suppliers:true, claims:true,  invoices:true,  receipts:true,  reports:true,  expenses:true,  users:true, settings:true, mechanics:true, 'parts-sales':true, 'body-paint':true, 'br-detail':true },
   manager: { dashboard:true,  workorders:true,  'wo-detail':true, customers:true,  'customer-detail':true, stock:true, 'stock-detail':true, suppliers:true, claims:true,  invoices:true,  receipts:true,  reports:true,  expenses:true,  users:false, settings:false, mechanics:false, 'parts-sales':true, 'body-paint':true, 'br-detail':true },
   cashier: { dashboard:true,  workorders:true,  'wo-detail':true, customers:true,  'customer-detail':true, stock:false, 'stock-detail':false, suppliers:false, claims:false, invoices:true,  receipts:false, reports:false, expenses:false, users:false, settings:false, mechanics:false, 'body-paint':false, 'br-detail':false },
+  clerk:   { dashboard:true,  workorders:true,  'wo-detail':true, customers:true,  'customer-detail':true, stock:true,  'stock-detail':true,  suppliers:true,  claims:true,  invoices:true,  receipts:true,  reports:false, expenses:true,  users:false, settings:false, mechanics:true,  'parts-sales':true, 'body-paint':true, 'br-detail':true },
 };
 
 var USERS = [
@@ -2515,6 +2518,137 @@ var nextId = 6;
 var currentUser = null;
 
 /* ══════════════════════════════════════════
+   SUPABASE (cloud data layer)
+══════════════════════════════════════════ */
+var SUPA_URL = 'https://mcgzuffzjwtmfmdamldd.supabase.co';
+var SUPA_KEY = 'sb_publishable_pJypIz15PwXpaDj2G8PV_g_V-7eCazP';
+var SUPA_EMAIL_DOMAIN = '@uan.local';
+var sb = (window.supabase && window.supabase.createClient) ? window.supabase.createClient(SUPA_URL, SUPA_KEY) : null;
+
+/* ตาราง Supabase -> ตัวแปร global ในแอป */
+var DB_TABLES = {
+  customers:'CUSTOMERS', work_orders:'WORK_ORDERS', receipts:'RECEIPTS',
+  invoices:'INVOICES', body_orders:'BODY_ORDERS', stock:'STOCK_DATA',
+  suppliers:'SUPPLIERS', mechanics:'MECHANICS', expenses:'EXPENSES',
+  purchase_orders:'PURCHASE_ORDERS', claims:'CLAIMS'
+};
+var _dbSnap = {};
+
+function _snapTable(tbl){
+  var arr = window[DB_TABLES[tbl]] || [];
+  var m = {};
+  arr.forEach(function(o){ if(o && o.id!=null) m[o.id] = JSON.stringify(o); });
+  return m;
+}
+function buildDbSnapshot(){
+  _dbSnap = {};
+  Object.keys(DB_TABLES).forEach(function(tbl){ _dbSnap[tbl] = _snapTable(tbl); });
+  _dbSnap.__settings = JSON.stringify((typeof SHOP_SETTINGS!=='undefined'?SHOP_SETTINGS:{})||{});
+}
+
+/* โหลดข้อมูลทั้งหมดจาก Supabase -> ใส่ array global */
+async function loadFromSupabase(){
+  if(!sb) throw new Error('supabase client not ready');
+  var tbls = Object.keys(DB_TABLES);
+  await Promise.all(tbls.map(async function(tbl){
+    var res = await sb.from(tbl).select('id,data').limit(2000);
+    if(res.error) throw res.error;
+    window[DB_TABLES[tbl]] = (res.data||[]).map(function(r){ return r.data; });
+  }));
+  var sres = await sb.from('settings').select('data').eq('id','shop').maybeSingle();
+  if(sres.data && sres.data.data && typeof SHOP_SETTINGS!=='undefined') Object.assign(SHOP_SETTINGS, sres.data.data);
+  buildDbSnapshot();
+}
+
+/* sync เฉพาะ record ที่เปลี่ยน (diff) ขึ้น Supabase */
+var _syncing=false, _syncAgain=false;
+async function syncToSupabase(){
+  if(!sb || !currentUser) return;
+  if(_syncing){ _syncAgain=true; return; }
+  _syncing=true;
+  try{
+    var tbls = Object.keys(DB_TABLES);
+    for(var i=0;i<tbls.length;i++){
+      var tbl = tbls[i];
+      var cur = _snapTable(tbl), prev = _dbSnap[tbl] || {};
+      var ups = [], dels = [];
+      Object.keys(cur).forEach(function(id){ if(cur[id]!==prev[id]) ups.push(JSON.parse(cur[id])); });
+      Object.keys(prev).forEach(function(id){ if(cur[id]===undefined) dels.push(id); });
+      if(ups.length){ var r = await sb.from(tbl).upsert(ups.map(function(o){ return {id:String(o.id), data:o}; })); if(r.error) throw r.error; }
+      if(dels.length){ var r2 = await sb.from(tbl).delete().in('id', dels); if(r2.error) throw r2.error; }
+      _dbSnap[tbl] = cur;
+    }
+    var sNow = JSON.stringify((SHOP_SETTINGS||{}));
+    if(sNow !== _dbSnap.__settings){ var rs = await sb.from('settings').upsert({id:'shop', data:SHOP_SETTINGS}); if(!rs.error) _dbSnap.__settings = sNow; }
+  }catch(e){ console.error('[supabase sync]', e); }
+  _syncing=false;
+  if(_syncAgain){ _syncAgain=false; syncToSupabase(); }
+}
+
+/* ══════════════════════════════════════════
+   REALTIME (ข้อมูลเด้งเข้าทุกเครื่องอัตโนมัติ)
+══════════════════════════════════════════ */
+var _rtChannel = null, _rtRerenderTimer = null;
+
+function startRealtime(){
+  if(!sb) return;
+  stopRealtime();
+  _rtChannel = sb.channel('gm-realtime');
+  Object.keys(DB_TABLES).forEach(function(tbl){
+    _rtChannel.on('postgres_changes', {event:'*', schema:'public', table:tbl}, function(p){ handleRtChange(tbl, p); });
+  });
+  _rtChannel.on('postgres_changes', {event:'*', schema:'public', table:'settings'}, function(p){
+    if(p.new && p.new.data && typeof SHOP_SETTINGS!=='undefined'){ Object.assign(SHOP_SETTINGS, p.new.data); _dbSnap.__settings = JSON.stringify(SHOP_SETTINGS); scheduleRtRerender(); }
+  });
+  _rtChannel.subscribe();
+}
+function stopRealtime(){ if(_rtChannel){ try{ sb.removeChannel(_rtChannel); }catch(e){} _rtChannel=null; } }
+
+function handleRtChange(tbl, payload){
+  var gvar = DB_TABLES[tbl];
+  var arr = window[gvar]; if(!arr) return;
+  var evt = payload.eventType || payload.event;
+  if(evt === 'DELETE'){
+    var did = payload.old && payload.old.id;
+    if(did!=null){ var di = arr.findIndex(function(o){ return String(o.id)===String(did); }); if(di>=0) arr.splice(di,1);
+      if(_dbSnap[tbl]) delete _dbSnap[tbl][String(did)]; }
+  } else {
+    var row = payload.new; if(!row || row.data==null) return;
+    var obj = row.data, id = String(row.id);
+    var i = arr.findIndex(function(o){ return String(o.id)===id; });
+    if(i>=0) arr[i]=obj; else arr.push(obj);
+    /* อัปเดต snapshot เฉพาะแถวนี้ (ไม่แตะแถวอื่นที่เครื่องนี้อาจยังแก้ค้างอยู่) */
+    if(!_dbSnap[tbl]) _dbSnap[tbl]={};
+    _dbSnap[tbl][id] = JSON.stringify(obj);
+  }
+  scheduleRtRerender();
+}
+
+function scheduleRtRerender(){ clearTimeout(_rtRerenderTimer); _rtRerenderTimer = setTimeout(refreshCurrentView, 300); }
+
+function refreshCurrentView(){
+  var active = document.querySelector('.view.active');
+  if(!active || !currentUser) return;
+  var id = active.id.replace(/^view-/,'');
+  var role = currentUser.role;
+  try{
+    if(id==='dashboard') initDashboard(role);
+    else if(id==='workorders') initWOList();
+    else if(id==='receipts') initReceipts();
+    else if(id==='stock') initStock();
+    else if(id==='customers'){ var ce=['owner','manager'].includes(role); renderAllCustomers(ce); }
+    else if(id==='claims'){ if(typeof initClaims==='function') initClaims(); }
+    else if(id==='body-paint'){ if(typeof initBodyPaint==='function') initBodyPaint(); }
+    else if(id==='reports'){ if(typeof buildReports==='function') buildReports(); }
+    else if(id==='expenses'){ if(typeof buildExpenses==='function') buildExpenses(); }
+    else if(id==='suppliers'){ if(typeof initSuppliers==='function') initSuppliers(); }
+    else if(id==='mechanics'){ if(typeof renderMechGrid==='function') renderMechGrid(); }
+    else if(id==='parts-sales'){ if(typeof initPartsSalesView==='function') initPartsSalesView(); }
+    else if(id==='wo-detail'){ if(typeof _currentWOId!=='undefined' && _currentWOId && typeof renderWODetailContent==='function') renderWODetailContent(_currentWOId, false); }
+  }catch(e){ console.warn('[rt rerender]', e); }
+}
+
+/* ══════════════════════════════════════════
    AUTH
 ══════════════════════════════════════════ */
 function fillDemo(u, p) {
@@ -2522,32 +2656,41 @@ function fillDemo(u, p) {
   document.getElementById('inp-pass').value = p;
 }
 
-function doLogin() {
-  const u = document.getElementById('inp-user').value.trim();
-  const p = document.getElementById('inp-pass').value.trim();
-  const found = USERS.find(x => x.username === u && x.password === p && x.status === 'active');
-  if (!found) {
-    document.getElementById('login-error').style.display = 'block';
-    return;
+async function doLogin() {
+  var u = document.getElementById('inp-user').value.trim();
+  var p = document.getElementById('inp-pass').value.trim();
+  var errEl = document.getElementById('login-error');
+  var btn = document.getElementById('btn-login');
+  if (!u || !p) { if(errEl){ errEl.textContent='กรุณากรอก username และรหัสผ่าน'; errEl.style.display='block'; } return; }
+  if (!sb) { if(errEl){ errEl.textContent='เชื่อมต่อระบบไม่ได้ (โหลดหน้าใหม่)'; errEl.style.display='block'; } return; }
+  if (errEl) errEl.style.display = 'none';
+  if (btn) { btn.disabled = true; btn.dataset._t = btn.textContent; btn.textContent = 'กำลังเข้าสู่ระบบ...'; }
+  try {
+    var email = u.indexOf('@') >= 0 ? u : (u + SUPA_EMAIL_DOMAIN);
+    var auth = await sb.auth.signInWithPassword({ email: email, password: p });
+    if (auth.error) throw new Error('username หรือรหัสผ่านไม่ถูกต้อง');
+    var uid = auth.data.user.id;
+    var prof = await sb.from('profiles').select('name,role').eq('id', uid).maybeSingle();
+    if (prof.error || !prof.data) throw new Error('ไม่พบสิทธิ์ผู้ใช้ (profile)');
+    var nm = prof.data.name || u;
+    currentUser = { id: uid, username: u, name: nm, role: prof.data.role, status:'active',
+                    avatar: (nm||u).trim().charAt(0) || '?', customPerms:null };
+    await bootApp();
+  } catch (e) {
+    if (errEl) { errEl.textContent = (e && e.message) || 'เข้าสู่ระบบไม่สำเร็จ'; errEl.style.display = 'block'; }
+  } finally {
+    if (btn) { btn.disabled = false; if(btn.dataset._t) btn.textContent = btn.dataset._t; }
   }
-  document.getElementById('login-error').style.display = 'none';
-  currentUser = found;
-  // บันทึกเวลา login ล่าสุด
-  var now = new Date();
-  var dd = String(now.getDate()).padStart(2,'0');
-  var mm = String(now.getMonth()+1).padStart(2,'0');
-  var yy = String((now.getFullYear()+543)%100).padStart(2,'0');
-  var hh = String(now.getHours()).padStart(2,'0');
-  var mn = String(now.getMinutes()).padStart(2,'0');
-  found.lastLogin = dd+'/'+mm+'/'+yy+' '+hh+':'+mn;
-  bootApp();
 }
 
 document.getElementById('inp-pass').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
 document.getElementById('inp-user').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
 
 function doLogout() {
+  try { stopRealtime(); } catch(e){}
+  try { if (sb) sb.auth.signOut(); } catch(e){}
   currentUser = null;
+  _dbSnap = {};
   document.getElementById('app').style.display = 'none';
   document.getElementById('login-screen').style.display = 'flex';
   document.getElementById('inp-pass').value = '';
@@ -2556,15 +2699,22 @@ function doLogout() {
 /* ══════════════════════════════════════════
    BOOT APP
 ══════════════════════════════════════════ */
-function bootApp() {
-  /* โหลดข้อมูลจาก localStorage ก่อนทุกอย่าง */
-  if (typeof loadFromLocalStorage === 'function') loadFromLocalStorage();
+async function bootApp() {
+  /* โหลดข้อมูลจาก Supabase (cloud) — ถ้าล่มใช้ cache localStorage */
+  try {
+    await loadFromSupabase();
+    startRealtime();   /* ฟังการเปลี่ยนแปลงสดจากทุกเครื่อง */
+  } catch (e) {
+    console.error('[loadFromSupabase]', e);
+    if (typeof loadFromLocalStorage === 'function') loadFromLocalStorage();
+    showToast && showToast('⚠️ โหลดจาก cloud ไม่ได้ ใช้ข้อมูลสำรองในเครื่อง');
+  }
 
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
 
   var r    = currentUser;
-  var role = ROLES[r.role];
+  var role = ROLES[r.role] || ROLES.owner;
 
   // Sidebar user info
   document.getElementById('sb-av').textContent   = r.avatar;
@@ -4955,6 +5105,7 @@ function saveWO() {
     showToast('✅ เปิดงาน '+wo.id+' — '+plate+' แล้ว');
   }
 
+  if (typeof saveToLocalStorage === 'function') saveToLocalStorage();  /* เซฟ WO+ลูกค้าใหม่ทันที */
   closeM('m-workorder');
   initWOList && initWOList();
   initDashboard(currentUser ? currentUser.role : '');
@@ -14198,6 +14349,8 @@ function saveToLocalStorage() {
     console.warn('localStorage save failed:', e);
     /* โดยทั่วไปเกิดเมื่อ storage เต็ม (>5MB) */
   }
+  /* sync ขึ้น cloud (diff เฉพาะที่เปลี่ยน) */
+  try { if (typeof syncToSupabase === 'function') syncToSupabase(); } catch(e){}
 }
 
 function loadFromLocalStorage() {
@@ -15467,6 +15620,8 @@ function printBRReceipt(brId) {
 window.addEventListener('beforeunload', function(){ saveToLocalStorage(); });
 /* ── Periodic save ทุก 60 วินาที ──────────────────────── */
 setInterval(saveToLocalStorage, 60000);
+/* sync ขึ้น cloud ทุก 8 วิ (diff เฉพาะที่เปลี่ยน — จับทุก flow ที่ไม่ได้เรียก save เอง) */
+setInterval(function(){ try{ if (currentUser && typeof syncToSupabase==='function') syncToSupabase(); }catch(e){} }, 8000);
 </script>
 </body>
 </html>    <!-- ── WORKORDERS ── -->
