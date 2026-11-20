@@ -2636,7 +2636,7 @@ function refreshCurrentView(){
     else if(id==='workorders') initWOList();
     else if(id==='receipts') initReceipts();
     else if(id==='stock') initStock();
-    else if(id==='customers'){ var ce=['owner','manager'].includes(role); renderAllCustomers(ce); }
+    else if(id==='customers'){ var ce=['owner','manager','clerk'].includes(role); renderAllCustomers(ce); }
     else if(id==='claims'){ if(typeof initClaims==='function') initClaims(); }
     else if(id==='body-paint'){ if(typeof initBodyPaint==='function') initBodyPaint(); }
     else if(id==='reports'){ if(typeof buildReports==='function') buildReports(); }
@@ -2747,7 +2747,7 @@ async function bootApp() {
 
   // Open WO button (dashboard topbar)
   var _tbOpenWO = document.getElementById('tb-open-wo');
-  if (_tbOpenWO && ['owner','manager'].includes(r.role)) {
+  if (_tbOpenWO && ['owner','manager','clerk'].includes(r.role)) {
     _tbOpenWO.innerHTML = '';
     var _openWOBtn = document.createElement('button');
     _openWOBtn.className = 'btn btn-primary';
@@ -2779,7 +2779,7 @@ async function bootApp() {
   initSuppliers();
 
   // Customers
-  var canEditCust = ['owner','manager'].includes(r.role);
+  var canEditCust = ['owner','manager','clerk'].includes(r.role);
   renderAllCustomers(canEditCust);
 
   nav('dashboard');
@@ -2844,7 +2844,7 @@ function nav(id, el) {
   if (id === 'workorders') { try { initWOList(); } catch(e){} }
   if (id === 'receipts') { try { initReceipts(); } catch(e){} }
   if (id === 'stock') { try { initStock(); } catch(e){} }
-  if (id === 'customers') { try { var _ce=['owner','manager'].includes(currentUser?currentUser.role:''); renderAllCustomers(_ce); /* restore last search */ var _si=document.getElementById('cust-search'); if(_si&&_custLastQ){_si.value=_custLastQ; filterCustomers(_custLastQ);} } catch(e){} }
+  if (id === 'customers') { try { var _ce=['owner','manager','clerk'].includes(currentUser?currentUser.role:''); renderAllCustomers(_ce); /* restore last search */ var _si=document.getElementById('cust-search'); if(_si&&_custLastQ){_si.value=_custLastQ; filterCustomers(_custLastQ);} } catch(e){} }
   if (id === 'claims')      { try { initClaims(); } catch(e){} }
   if (id === 'body-paint')  { try { initBodyPaint(); } catch(e){} }
 }
@@ -2855,19 +2855,19 @@ function nav(id, el) {
 function buildToolbarButtons(role) {
   // Dashboard open WO
   const tbOpenWO = document.getElementById('tb-open-wo');
-  if(['owner','manager'].includes(role)) {
+  if(['owner','manager','clerk'].includes(role)) {
     tbOpenWO.innerHTML = `<button class="btn btn-primary" onclick="openM('m-workorder')">＋ เปิดงานซ่อม</button>`;
   }
   // Work orders
   const tbWO = document.getElementById('tb-wo-btn');
-  if(['owner','manager'].includes(role)) {
+  if(['owner','manager','clerk'].includes(role)) {
     tbWO.innerHTML = `<button class="btn btn-outline btn-sm">🔍</button><button class="btn btn-primary" onclick="openM('m-workorder')">＋ เปิดงานใหม่</button>`;
   } else if(role === 'cashier') {
     tbWO.innerHTML = `<button class="btn btn-outline btn-sm">🔍 ค้นหา</button>`;
   }
   // Customers — tech ไม่มีสิทธิ์
   const tbCust = document.getElementById('tb-cust-btn');
-  if(['owner','manager'].includes(role)) {
+  if(['owner','manager','clerk'].includes(role)) {
     tbCust.innerHTML = '';
     var addCustBtn = document.createElement('button');
     addCustBtn.className = 'btn btn-primary';
@@ -2881,7 +2881,7 @@ function buildToolbarButtons(role) {
   // Stock toolbar handled by initStock()
   // Invoices — cashier ดูได้อย่างเดียว, owner/manager สร้างได้
   const tbInv = document.getElementById('tb-inv-btn');
-  if(['owner','manager'].includes(role)) {
+  if(['owner','manager','clerk'].includes(role)) {
     tbInv.innerHTML = `<button class="btn btn-primary" onclick="openM('m-workorder')">＋ สร้างใบเสนอราคา</button>`;
   } else if(role === 'cashier') {
     tbInv.innerHTML = `<span style="font-size:12px;color:var(--text3);padding:4px 0">อ่านได้อย่างเดียว</span>`;
@@ -2893,7 +2893,7 @@ function buildWOActions(role) {
   woIds.forEach(id => {
     const el = document.getElementById('wo-act-'+id);
     if(!el) return;
-    if(['owner','manager'].includes(role)) {
+    if(['owner','manager','clerk'].includes(role)) {
       el.innerHTML = `<button class="btn btn-outline btn-xs" onclick="openM('m-receipt')">ใบเสร็จ</button>`;
     } else if(role === 'cashier') {
       // cashier ดูได้แต่ไม่ออกใบเสร็จ
@@ -2908,7 +2908,7 @@ function buildWOActions(role) {
 function buildQuickActions(role) {
   var el = document.getElementById('quick-actions'); if (!el) return;
   var items = [];
-  if (['owner','manager'].includes(role)) {
+  if (['owner','manager','clerk'].includes(role)) {
     items = [
       { ico:'👤', bg:'#dbeafe', txt:'เพิ่มลูกค้า',      sub:'ซ่อมรถ / ซื้ออะไหล่', cls:'qi-blue',   fn:"openM('m-customer')" },
       { ico:'📦', bg:'#dcfce7', txt:'รับอะไหล่',        sub:'อัปเดตสต็อก',          cls:'qi-green',  fn:'openStockReceive()' },
@@ -2939,7 +2939,7 @@ function buildReports(role) {
   const el = document.getElementById('reports-content');
   if(!el) return;
   // เฉพาะ owner + manager เท่านั้น
-  if(['owner','manager'].includes(role)) {
+  if(['owner','manager','clerk'].includes(role)) {
     el.innerHTML = `
       <div class="stats-row">
         <div class="stat"><div class="stat-top"><div class="stat-icon i-blue">📅</div><span class="stat-delta delta-up">+22</span></div><div class="stat-val">248</div><div class="stat-lbl">งานซ่อมเดือนนี้</div></div>
@@ -3750,7 +3750,7 @@ function switchCustTab(tab, el) {
 function filterCustomers(q) {
   q = (q||'').trim();
   _custLastQ = q;   /* save so nav-back can restore */
-  var canEdit = ['owner','manager'].includes(currentUser?currentUser.role:'');
+  var canEdit = ['owner','manager','clerk'].includes(currentUser?currentUser.role:'');
   var ql = q.toLowerCase().replace(/\s/g,'');
 
   /* ── Repair: ทะเบียน (หลัก) > ชื่อ > รุ่นรถ ── */
@@ -3817,7 +3817,7 @@ function openCustDetail(id) {
   var c = CUSTOMERS.find(function(x){ return x.id===id; });
   if (!c) return;
   currentCustId = id;
-  var canEdit = ['owner','manager'].includes(currentUser?currentUser.role:'');
+  var canEdit = ['owner','manager','clerk'].includes(currentUser?currentUser.role:'');
   var _isJuristic = c.custClass === 'juristic';
   document.getElementById('cdet-name').textContent = custDisplayName(c);
   document.getElementById('cdet-type').textContent = c.type==='repair'?'👤 ลูกค้าซ่อมรถ':'🛒 ลูกค้าซื้ออะไหล่';
@@ -3931,7 +3931,7 @@ function confirmDelCust(id) {
     'ต้องการลบลูกค้า <b>'+custDisplayName(c)+'</b>?<br><span style="color:var(--red);font-size:12.5px">⚠️ ไม่สามารถกู้คืนได้</span>',
     function(){
       CUSTOMERS = CUSTOMERS.filter(function(x){ return x.id!==id; });
-      var canEdit = ['owner','manager'].includes(currentUser?currentUser.role:'');
+      var canEdit = ['owner','manager','clerk'].includes(currentUser?currentUser.role:'');
       renderAllCustomers(canEdit);
       nav('customers');
       showToast('🗑 ลบลูกค้า '+custDisplayName(c)+' แล้ว');
@@ -4101,7 +4101,7 @@ function saveCust() {
       });
     });
   }
-  var canEdit = ['owner','manager'].includes(currentUser?currentUser.role:'');
+  var canEdit = ['owner','manager','clerk'].includes(currentUser?currentUser.role:'');
   if (editingCustId) {
     var ex = CUSTOMERS.find(function(x){ return x.id===editingCustId; });
     if (ex) {
@@ -4631,7 +4631,7 @@ function buildStatList(container, list, sc) {
 function showWOPopup(woId) {
   var w = WORK_ORDERS.find(function(x){ return x.id === woId; });
   if (!w) return;
-  var showAmt = ['owner','manager'].includes(currentUser ? currentUser.role : '');
+  var showAmt = ['owner','manager','clerk'].includes(currentUser ? currentUser.role : '');
   var sc = WO_SC[w.status] || 'badge-wait';
   var pt = 0, lt = 0;
   (w.parts||[]).forEach(function(p){ pt += p.trial ? 0 : (parseFloat(p.qty)||0)*(parseFloat(p.price)||0); });
@@ -4695,7 +4695,7 @@ function openWODetail(woId) {
   var w = WORK_ORDERS.find(function(x){ return x.id === woId; });
   if (!w) { showToast('ไม่พบข้อมูลงาน '+woId); return; }
   _currentWOId = woId;
-  var showAmt = ['owner','manager'].includes(currentUser ? currentUser.role : '');
+  var showAmt = ['owner','manager','clerk'].includes(currentUser ? currentUser.role : '');
   var sc = WO_SC[w.status] || 'badge-wait';
   var pt = 0, lt = 0;
   (w.parts||[]).forEach(function(p){ pt += p.trial ? 0 : (parseFloat(p.qty)||0)*(parseFloat(p.price)||0); });
@@ -5098,7 +5098,7 @@ function saveWO() {
     }
     CUSTOMERS.push(newCust);
     wo.custId = newCustId;
-    var _canEdit = ['owner','manager'].includes(currentUser ? currentUser.role : '');
+    var _canEdit = ['owner','manager','clerk'].includes(currentUser ? currentUser.role : '');
     renderAllCustomers(_canEdit);
     showToast('✅ เปิดงาน '+wo.id+' — '+plate+' | บันทึกลูกค้าใหม่แล้ว');
   } else {
@@ -5302,7 +5302,7 @@ function initStock() {
       ? '<div class="alert alert-warn" style="margin-bottom:0">⚠️ มีอะไหล่ <b>'+low.length+' รายการ</b> ต่ำกว่าขั้นต่ำ — <span style="cursor:pointer;text-decoration:underline" onclick="setStockTab(\'low\',document.getElementById(\'stab-low\'))">ดูรายการ</span></div>'
       : '';
   }
-  var canEdit = ['owner','manager'].includes(currentUser ? currentUser.role : '');
+  var canEdit = ['owner','manager','clerk'].includes(currentUser ? currentUser.role : '');
   var btn = document.getElementById('stock-add-btn');
   if (btn) btn.style.display = canEdit ? '' : 'none';
 }
@@ -5358,7 +5358,7 @@ function runStockSearch() {
 
 function renderStockTable(reset) {
   var tbody  = document.getElementById('stock-tbody');
-  var canEdit= ['owner','manager'].includes(currentUser ? currentUser.role : '');
+  var canEdit= ['owner','manager','clerk'].includes(currentUser ? currentUser.role : '');
   if (!tbody) return;
   var page  = _stockResults.slice(_stockOffset, _stockOffset+STOCK_PAGE);
   var total = _stockResults.length;
@@ -5437,7 +5437,7 @@ function loadMoreStock() { renderStockTable(false); }
 /* ── Stock detail ─────────────────────────────────────────── */
 function openStockDetail(id) {
   var s = STOCK_DATA.find(function(x){ return x.id===id; }); if (!s) return;
-  var canEdit = ['owner','manager'].includes(currentUser ? currentUser.role : '');
+  var canEdit = ['owner','manager','clerk'].includes(currentUser ? currentUser.role : '');
   var totalQty = stockQty(s);
   var isLow = totalQty < s.minQty;
   var pct   = s.minQty>0 ? Math.min(100,Math.round(totalQty/s.minQty*100)) : 100;
@@ -5994,7 +5994,7 @@ function switchSupTab(tab, el) {
 
 function renderSupGrid() {
   var grid = document.getElementById('sup-grid'); if (!grid) return;
-  var canEdit = ['owner','manager'].includes(currentUser ? currentUser.role : '');
+  var canEdit = ['owner','manager','clerk'].includes(currentUser ? currentUser.role : '');
   /* Keep tab count in sync */
   var cntEl = document.getElementById('sup-cnt'); if (cntEl) cntEl.textContent = SUPPLIERS.length;
   var poEl  = document.getElementById('po-cnt');  if (poEl)  poEl.textContent  = PURCHASE_ORDERS.length;
@@ -6123,7 +6123,7 @@ function renderPOTable(filterSupId) {
 function openSupplierDetail(id) {
   var s = SUPPLIERS.find(function(x){ return x.id===id; }); if (!s) return;
   currentSupId = id;
-  var canEdit = ['owner','manager'].includes(currentUser ? currentUser.role : '');
+  var canEdit = ['owner','manager','clerk'].includes(currentUser ? currentUser.role : '');
   document.getElementById('sup-det-name').textContent = s.name;
   document.getElementById('sup-det-sub').textContent  = (s.type==='company'?'🏢 บริษัท':'🏪 ร้านค้า')+(s.taxid?' | เลขภาษี: '+s.taxid:'');
   var editBtn = document.getElementById('sup-det-edit');
@@ -7052,7 +7052,7 @@ function initWOList() {
 function buildWOToolbar(role) {
   var tb = document.getElementById('tb-wo-btn'); if (!tb) return;
   tb.innerHTML = '';
-  if (['owner','manager'].includes(role)) {
+  if (['owner','manager','clerk'].includes(role)) {
     // New WO button (ซ้าย)
     var newBtn = document.createElement('button');
     newBtn.className = 'btn btn-primary';
@@ -7326,8 +7326,8 @@ function openWODetail(woId) {
   _currentWOId = woId;
   _returnMode  = false;
   var role    = currentUser ? currentUser.role : '';
-  var showAmt = ['owner','manager'].includes(role);
-  var canEdit = ['owner','manager'].includes(role);
+  var showAmt = ['owner','manager','clerk'].includes(role);
+  var canEdit = ['owner','manager','clerk'].includes(role);
   var sc = WO_SC_MAP[w.status]||'badge-wait';
   var isDone = w.status==='เสร็จแล้ว';
 
@@ -7363,8 +7363,8 @@ function openWODetail(woId) {
 
 function renderWODetailContent(woId, returnMode) {
   var w = WORK_ORDERS.find(function(x){ return x.id===woId; }); if (!w) return;
-  var showAmt = ['owner','manager'].includes(currentUser ? currentUser.role : '');
-  var canEdit = ['owner','manager'].includes(currentUser ? currentUser.role : '');
+  var showAmt = ['owner','manager','clerk'].includes(currentUser ? currentUser.role : '');
+  var canEdit = ['owner','manager','clerk'].includes(currentUser ? currentUser.role : '');
   var isDone  = w.status==='เสร็จแล้ว';
 
   // Update return button style
@@ -9699,7 +9699,7 @@ var MECH_POS_COLORS = {
 function initMechanics() {
   renderMechToday();
   renderMechGrid();
-  var canEdit = ['owner','manager'].includes(currentUser ? currentUser.role : '');
+  var canEdit = ['owner','manager','clerk'].includes(currentUser ? currentUser.role : '');
   var addBtn = document.getElementById('mech-add-btn');
   if (addBtn) addBtn.style.display = canEdit ? '' : 'none';
 }
@@ -9713,7 +9713,7 @@ function switchMechTab(tab, el) {
 
 function renderMechGrid() {
   var grid = document.getElementById('mech-grid'); if (!grid) return;
-  var canEdit = ['owner','manager'].includes(currentUser ? currentUser.role : '');
+  var canEdit = ['owner','manager','clerk'].includes(currentUser ? currentUser.role : '');
 
   /* Update tab counts */
   var cntActive   = MECHANICS.filter(function(m){ return m.status==='active'; }).length;
@@ -11273,7 +11273,7 @@ function confirmPartsSale() {
     }
     /* Always re-render customer page */
     try {
-      var _canEdit2 = ['owner','manager'].includes(currentUser?currentUser.role:'');
+      var _canEdit2 = ['owner','manager','clerk'].includes(currentUser?currentUser.role:'');
       renderAllCustomers(_canEdit2);
     } catch(e){}
   }
@@ -11764,7 +11764,7 @@ var _custFiltered = { repair:[], parts:[] };
 var _custLastQ    = '';   /* remember last search query to restore after Back */
 
 function showAllCust(type) {
-  var canEdit = ['owner','manager'].includes(currentUser?currentUser.role:'');
+  var canEdit = ['owner','manager','clerk'].includes(currentUser?currentUser.role:'');
   var all = CUSTOMERS.filter(function(c){ return c.type===type; });
   _custFiltered[type] = all;
   _custOffset[type]   = 0;
@@ -11780,7 +11780,7 @@ function showAllCust(type) {
 }
 
 function loadMoreCust(type) {
-  var canEdit = ['owner','manager'].includes(currentUser?currentUser.role:'');
+  var canEdit = ['owner','manager','clerk'].includes(currentUser?currentUser.role:'');
   appendCustPage(type, canEdit);
 }
 
@@ -14477,7 +14477,7 @@ function importBackup() {
               initDashboard(currentUser.role);
               initWOList(); initInvoices(); initMechanics();
               initReceipts(); initStock(); initSuppliers();
-              renderAllCustomers(['owner','manager'].includes(currentUser.role));
+              renderAllCustomers(['owner','manager','clerk'].includes(currentUser.role));
               loadSettingsToForm && loadSettingsToForm();
             }
             showToast('✅ Import สำเร็จ — โหลดข้อมูลแล้ว');
@@ -14544,7 +14544,7 @@ function renderClaimsView() {
     return;
   }
 
-  var canEdit = ['owner','manager'].includes(currentUser?currentUser.role:'');
+  var canEdit = ['owner','manager','clerk'].includes(currentUser?currentUser.role:'');
   container.innerHTML = '<div class="tbl-wrap"><table class="tbl"><thead><tr>'
     +'<th>เลขเคลม</th><th>วันที่</th><th>ทะเบียน / ลูกค้า</th><th>Supplier</th><th>อะไหล่</th><th style="text-align:right">มูลค่า</th><th>สถานะ</th><th style="width:100px"></th>'
     +'</tr></thead><tbody>'
@@ -14904,7 +14904,7 @@ function openBRDetail(brId) {
 function renderBRDetail(brId) {
   var b = BODY_ORDERS.find(function(x){ return x.id===brId; }); if (!b) return;
   _brCurrentId = brId;
-  var canEdit = ['owner','manager'].includes(currentUser ? currentUser.role : '');
+  var canEdit = ['owner','manager','clerk'].includes(currentUser ? currentUser.role : '');
   var isDone  = b.status === 'ส่งมอบแล้ว';
   var sc      = BR_STATUS_COLOR[b.status] || BR_STATUS_COLOR['ดำเนินการ'];
 
