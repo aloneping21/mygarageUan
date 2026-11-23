@@ -2608,6 +2608,60 @@ async function syncToSupabase(){
   if(_syncAgain){ _syncAgain=false; syncToSupabase(); }
 }
 
+/* ดึงข้อมูลใหม่จาก Supabase มา merge (safety net เผื่อ realtime ไม่ส่ง)
+   — รับของใหม่/แก้ไข/ลบ จากเครื่องอื่น โดยไม่ทับงานที่เครื่องนี้แก้ค้างยังไม่ sync */
+var _pulling=false;
+async function pullFromSupabase(){
+  if(!sb || !currentUser) return;
+  if(_pulling || _syncing) return;           /* อย่าชนกับ push ที่กำลังทำ */
+  if(document.hidden) return;                /* แท็บไม่ได้เปิดอยู่ ไม่ต้องดึง */
+  _pulling=true;
+  var changed=false;
+  try{
+    var tbls = Object.keys(DB_TABLES);
+    for(var i=0;i<tbls.length;i++){
+      var tbl = tbls[i];
+      var res = await sb.from(tbl).select('id,data').limit(5000);
+      if(res.error) continue;
+      var gvar = DB_TABLES[tbl];
+      var arr = window[gvar]; if(!arr) continue;
+      if(!_dbSnap[tbl]) _dbSnap[tbl] = {};
+      var snap = _dbSnap[tbl];
+      var curSnap = _snapTable(tbl);         /* สถานะปัจจุบันในเครื่องนี้ {id: json} */
+      var cloudIds = {};
+      (res.data||[]).forEach(function(r){
+        var id = String(r.id); cloudIds[id]=true;
+        var cloudJson = JSON.stringify(r.data);
+        if(snap[id] === cloudJson) return;   /* คลาวด์ไม่เปลี่ยนจากที่เรารู้ล่าสุด */
+        var localJson = curSnap[id];
+        if(localJson !== undefined && localJson !== snap[id]) return; /* เครื่องนี้แก้ค้าง -> ให้ push ของเราชนะ */
+        var idx = arr.findIndex(function(o){ return String(o.id)===id; });
+        if(idx>=0) arr[idx]=r.data; else arr.push(r.data);
+        snap[id]=cloudJson; changed=true;
+      });
+      /* ของที่โดนลบจากเครื่องอื่น (เคยมีใน snap แต่คลาวด์ไม่มีแล้ว และเครื่องนี้ไม่ได้แก้) */
+      Object.keys(snap).forEach(function(id){
+        if(cloudIds[id]) return;
+        var localJson = curSnap[id];
+        if(localJson !== undefined && localJson !== snap[id]) return; /* เครื่องนี้แก้ค้าง -> เก็บไว้ */
+        var idx = arr.findIndex(function(o){ return String(o.id)===id; });
+        if(idx>=0){ arr.splice(idx,1); changed=true; }
+        delete snap[id];
+      });
+    }
+    /* settings */
+    var sres = await sb.from('settings').select('data').eq('id','shop').maybeSingle();
+    if(sres.data && sres.data.data && typeof SHOP_SETTINGS!=='undefined'){
+      var cloudS = JSON.stringify(sres.data.data);
+      if(cloudS !== _dbSnap.__settings && JSON.stringify(SHOP_SETTINGS) === _dbSnap.__settings){
+        Object.assign(SHOP_SETTINGS, sres.data.data); _dbSnap.__settings = JSON.stringify(SHOP_SETTINGS); changed=true;
+      }
+    }
+  }catch(e){ console.error('[supabase pull]', e); }
+  _pulling=false;
+  if(changed){ try{ syncIdCounters(); }catch(e){} scheduleRtRerender(); }
+}
+
 /* ══════════════════════════════════════════
    REALTIME (ข้อมูลเด้งเข้าทุกเครื่องอัตโนมัติ)
 ══════════════════════════════════════════ */
@@ -15645,6 +15699,8 @@ window.addEventListener('beforeunload', function(){ saveToLocalStorage(); });
 setInterval(saveToLocalStorage, 60000);
 /* sync ขึ้น cloud ทุก 8 วิ (diff เฉพาะที่เปลี่ยน — จับทุก flow ที่ไม่ได้เรียก save เอง) */
 setInterval(function(){ try{ if (currentUser && typeof syncToSupabase==='function') syncToSupabase(); }catch(e){} }, 8000);
+/* ดึงข้อมูลจาก cloud ทุก 10 วิ (safety net เผื่อ realtime ไม่ส่ง — เครื่องหลักเห็นของที่เครื่องอื่นเพิ่ม) */
+setInterval(function(){ try{ if (currentUser && typeof pullFromSupabase==='function') pullFromSupabase(); }catch(e){} }, 10000);
 </script>
 </body>
 </html>    <!-- ── WORKORDERS ── -->
