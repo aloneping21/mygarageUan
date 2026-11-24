@@ -2703,9 +2703,21 @@ function handleRtChange(tbl, payload){
 
 function scheduleRtRerender(){ clearTimeout(_rtRerenderTimer); _rtRerenderTimer = setTimeout(refreshCurrentView, 300); }
 
+/* ผู้ใช้กำลังพิมพ์อยู่ไหม — ถ้าช่องกรอก/ข้อความ/dropdown โฟกัสอยู่ ห้าม re-render (ไม่งั้นที่พิมพ์หาย) */
+function _isUserEditing(){
+  var el = document.activeElement;
+  if(!el) return false;
+  var tag = (el.tagName||'').toLowerCase();
+  if(tag==='input' || tag==='textarea' || tag==='select') return true;
+  if(el.isContentEditable) return true;
+  return false;
+}
+
 function refreshCurrentView(){
   var active = document.querySelector('.view.active');
   if(!active || !currentUser) return;
+  /* กำลังพิมพ์อยู่ — เลื่อน re-render ออกไปก่อน แล้วลองใหม่ (กันข้อความที่พิมพ์ค้างหาย/หน้ารีเฟรช) */
+  if(_isUserEditing()){ clearTimeout(_rtRerenderTimer); _rtRerenderTimer = setTimeout(refreshCurrentView, 2500); return; }
   var id = active.id.replace(/^view-/,'');
   var role = currentUser.role;
   try{
